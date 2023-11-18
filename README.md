@@ -17,7 +17,8 @@ this addon conflict with `ImageLoaderHook`, when use this addon, never to write 
 ```json lines
 {
   "imgFileList": [
-    // the image files
+    // the image files , write as origin path , this addon will auto select it
+    // 在这里放图片文件，写DoL游戏的原始图片路径即可，这个Addon会自动根据选择的美化版本选择使用哪个mod中的图片
   ],
   "addonPlugin": [
     {
