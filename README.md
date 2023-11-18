@@ -1,0 +1,2 @@
+
+# BeautySelectorAddon
