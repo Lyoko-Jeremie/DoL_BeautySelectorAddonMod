@@ -68,9 +68,9 @@ export class BeautySelectorAddonImgGetter implements IModImgGetter {
             (lruCache ?? BeautySelectorAddonImgLruCache).set(this.imgPath, imgCache);
             return imgCache;
         }
-        console.error(`BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
-        this.logger.error(`BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
-        return Promise.reject(`BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
+        console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
+        this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
+        return Promise.reject(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
     }
 
 }
@@ -80,7 +80,7 @@ export const BeautySelectorAddonImgLruCache = new LRUCache<string, string>({
     max: 20,
     ttl: 1000 * 60 * 1,
     dispose: (value: string, key: string, reason: LRUCache.DisposeReason) => {
-        console.log('BeautySelectorAddonImgLruCache dispose', [value], [reason]);
+        console.log('[BeautySelectorAddon] BeautySelectorAddonImgLruCache dispose', [value], [reason]);
     },
     updateAgeOnGet: true,
     updateAgeOnHas: true,
