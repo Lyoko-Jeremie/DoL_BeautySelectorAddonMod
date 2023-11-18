@@ -19,16 +19,69 @@
   "imgFileReplaceList": [
   ],
   "additionFile": [
-    "README.md"
+    "README.md",
+//    "i18n_replace/replaceIndexFile.json5",
+//    "i18n_replace/en/findLanguageFile.json5",
+//    "i18n_replace/en/replaceLanguageFile.json5",
+//    "i18n_replace/zh/findLanguageFile.json5",
+//    "i18n_replace/zh/replaceLanguageFile.json5"
   ],
   "additionBinaryFile": [
   ],
   "addonPlugin": [
+//    {
+//      "modName": "I18nTweeReplacer",
+//      "addonName": "I18nTweeReplacerAddon",
+//      "modVersion": "^1.0.0",
+//      "params": {
+//        "mainFindLanguage": "en",
+//        "mainReplaceLanguage": "zh",
+//        "replaceIndexFile": "i18n_replace/replaceIndexFile.json5",
+//        "findLanguageFile": [
+//          {
+//            "language": "zh",
+//            "file": "i18n_replace/zh/findLanguageFile.json5"
+//          },
+//          {
+//            "language": "en",
+//            "file": "i18n_replace/en/findLanguageFile.json5"
+//          }
+//        ],
+//        "replaceLanguageFile": [
+//          {
+//            "language": "zh",
+//            "file": "i18n_replace/zh/replaceLanguageFile.json5"
+//          },
+//          {
+//            "language": "en",
+//            "file": "i18n_replace/en/replaceLanguageFile.json5"
+//          }
+//        ],
+//        "twee": [
+//          {
+//            "TODO": "options.twee",
+//            "passageName": "Options Overlay",
+//            "from": "<span class=\"gold\">美化选择</span><br>",
+//            "to": "<span class=\"gold\">美化选择</span><br>\n\t<label><<radiobutton \"$options.bodystyle\" \"bee\" autocheck>> BEE</label> | "
+//          },
+//          {
+//            "TODO": "options.twee",
+//            "passageName": "Options Overlay",
+//            "from": "<span class=\"gold\">美化选择</span><br>",
+//            "to": "<span class=\"gold\">美化选择</span><br>\n\t<label><<radiobutton \"$options.closeup\" \"paril\" autocheck>> Paril</label> | "
+//          }
+//        ]
+//      }
+//    }
   ],
   "dependenceInfo": [
     {
       "modName": "ModLoader",
       "version": "^2.7.3"
+    },
+    {
+      "modName": "I18nTweeReplacer",
+      "version": "^1.0.0"
     },
     {
       "modName": "ModLoader DoL ImageLoaderHook",
