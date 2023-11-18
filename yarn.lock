@@ -1135,6 +1135,7 @@ __metadata:
     json5: ^2.2.3
     jszip: ^3.10.1
     lodash: ^4.17.21
+    lru-cache: ^10.0.2
     moment: ^2.29.4
     nodemon: ^3.0.1
     sass: ^1.66.1
@@ -4108,7 +4109,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lru-cache@npm:^10.0.1, lru-cache@npm:^9.1.1 || ^10.0.0":
+"lru-cache@npm:^10.0.1, lru-cache@npm:^10.0.2, lru-cache@npm:^9.1.1 || ^10.0.0":
   version: 10.0.2
   resolution: "lru-cache@npm:10.0.2"
   dependencies:

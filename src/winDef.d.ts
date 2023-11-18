@@ -10,5 +10,6 @@ declare global {
         jQuery: jQuery;
 
         addonBeautySelectorAddon: BeautySelectorAddon;
+        modImgLoaderHooker: ImgLoaderHooker;
     }
 }
