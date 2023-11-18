@@ -13,7 +13,15 @@ this mod export addon:
 
 #### `ImageLoaderHook` 兼容模式
 
+在 `params` 下添加 `imgFileList` 字段，可以让 `BeautySelectorAddon` 与 `ImageLoaderHook` 兼容。  
+此时 `BeautySelectorAddon`只会读取 `params` 中 `imgFileList` 字段内的图片，而不会读取boot对象根上的`imgFileList` 字段。   
 
+此时 `BeautySelectorAddon` 使用 `params` 中 `imgFileList`， `ImageLoaderHook` 使用 `boot` 对象根上的 `imgFileList`， 故两个Addon不会冲突。
+
+此兼容模式专门设计给需要同时使用 `BeautySelectorAddon` 和 `ImageLoaderHook` 的情况使用。 例如复杂的带剧情同时带美化的整合mod。
+
+
+### 配置格式
 
 ```json lines
 {
@@ -64,3 +72,33 @@ this mod export addon:
 }
 ```
 
+
+
+### 举例
+
+
+```json lines
+{
+  "imgFileList": [],
+  "addonPlugin": [
+    {
+      "modName": "BeautySelectorAddon",
+      "addonName": "BeautySelectorAddon",
+      "modVersion": "^1.0.0",
+      "params": {
+        "type": "ACustomBeautyType",
+        "imgFileList": [
+          "img/aaa.png",
+          "img/bbb.png"
+        ],
+      }
+    }
+  ],
+  "dependenceInfo": [
+    {
+      "modName": "BeautySelectorAddon",
+      "version": "^1.0.0"
+    }
+  ]
+}
+```
