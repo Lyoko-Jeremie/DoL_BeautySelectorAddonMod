@@ -7,67 +7,60 @@ this mod export addon:
 
 `BeautySelectorAddon` : `BeautySelectorAddon`
 
-
-## **⚠警告：**
-此插件与 `ImageLoaderHook` 冲突，在不使用 *兼容模式* 时 **不要** 同时在 `addonPlugin` 中声明使用 `ImageLoaderHook` 
-
-#### `ImageLoaderHook` 兼容模式
-
-在 `params` 下添加 `imgFileList` 字段，可以让 `BeautySelectorAddon` 与 `ImageLoaderHook` 兼容。  
-此时 `BeautySelectorAddon`只会读取 `params` 中 `imgFileList` 字段内的图片，而不会读取boot对象根上的`imgFileList` 字段。   
-
-此时 `BeautySelectorAddon` 使用 `params` 中 `imgFileList`， `ImageLoaderHook` 使用 `boot` 对象根上的 `imgFileList`， 故两个Addon不会冲突。
-
-此兼容模式专门设计给需要同时使用 `BeautySelectorAddon` 和 `ImageLoaderHook` 的情况使用。 例如复杂的带剧情同时带美化的整合mod。
-
-
 ### 配置格式
 
 ```json lines
 {
-  "imgFileList": [
-    // it you want use this `imgFileList`, keep follow `imgFileList` in `addonPlugin` empty
-    // the image files , write as origin path , this addon will auto select it
-    // 在这里放图片文件，写DoL游戏的原始图片路径即可，这个Addon会自动根据选择的美化版本选择使用哪个mod中的图片
-    // 如果想使用这个`imgFileList`，请移除下面的`addonPlugin`中的`imgFileList`，否则，这个`imgFileList`将被忽略
-    // 这种情况适用于既想使用`BeautySelectorAddon`又想使用`ImageLoaderHook`的情况
+  "additionBinaryFile": [
+    // ... 下面imgFileList中引用到的所有文件的完整路径
+    "DirTypeA/img/aaa.png",
+    "DirTypeA/img/bbb.png",
+    "DirTypeB/img/aaa.png",
+    "DirTypeB/img/bbb.png",
   ],
   "addonPlugin": [
     {
       "modName": "BeautySelectorAddon",
       "addonName": "BeautySelectorAddon",
-      "modVersion": "^1.0.0",
+      "modVersion": "^2.0.0",
       "params": {
-        // example  "type": "beeesss"
+        // 模式1： 只有一套美化的模式
         "type": "YourBeautyType",
         "imgFileList": [
-          // use this or use above. if this is exist, the above will be ignored, otherwise , remove the `imgFileList` field from `params`
           // the image files , write as origin path , this addon will auto select it
           // 在这里放图片文件，写DoL游戏的原始图片路径即可，这个Addon会自动根据选择的美化版本选择使用哪个mod中的图片
-          // 如果要使用这个，上面最外层的imgFileList将会被忽略，否则，请删除这个位于params中的imgFileList字段
-          // 这种情况适用于既想使用`BeautySelectorAddon`又想使用`ImageLoaderHook`的情况
+          // 这里的路径就是zip中的路径，记得将文件路径加入 additionBinaryFile
         ],
+        // 模式2： 多套美化的模式
+        // 如果存在这个类型列表字段，则上面两个字段( `type` / `imgFileList` )会被忽略
+        types: [
+          {
+            "type": "TypeA",
+            "rootDir": "DirTypeA",
+            "imgFileList": [
+              // ... 和游戏原始图片路径一样的路径，且在zip中的真实文件路径必须是 `rootDir/imgPath` 的格式
+              "img/aaa.png",    // 例如此文件在zip中的真实路径必须是 `DirTypeA/img/aaa.png` ，同时对应上面 additionBinaryFile 中的路径
+              "img/bbb.png",
+            ],
+          },
+          {
+            "type": "TypeB",
+            "rootDir": "DirTypeB",
+            "imgFileList": [
+              // ... 和游戏原始图片路径一样的路径
+              "img/aaa.png",
+              "img/bbb.png",
+            ],
+          }
+        ]
       }
     }
-    // !!!!!!! never write ImageLoaderHook, you dont need that !!!!!!!
-    //    {
-    //      "modName": "ModLoader DoL ImageLoaderHook",
-    //      "addonName": "ImageLoaderAddon",
-    //      "modVersion": "^2.3.0",
-    //      "params": [
-    //      ]
-    //    }
   ],
   "dependenceInfo": [
     {
       "modName": "BeautySelectorAddon",
-      "version": "^1.0.0"
+      "version": "^2.0.0"
     }
-    // !!!!!!! never write ImageLoaderHook, you dont need that !!!!!!!
-    //    {
-    //      "modName": "ModLoader DoL ImageLoaderHook",
-    //      "version": "^2.3.0"
-    //    }
   ]
 }
 ```
@@ -79,12 +72,15 @@ this mod export addon:
 
 ```json lines
 {
-  "imgFileList": [],
+  "additionBinaryFile": [
+    "img/aaa.png",
+    "img/bbb.png"
+  ],
   "addonPlugin": [
     {
       "modName": "BeautySelectorAddon",
       "addonName": "BeautySelectorAddon",
-      "modVersion": "^1.0.0",
+      "modVersion": "^2.0.0",
       "params": {
         "type": "ACustomBeautyType",
         "imgFileList": [
@@ -97,7 +93,51 @@ this mod export addon:
   "dependenceInfo": [
     {
       "modName": "BeautySelectorAddon",
-      "version": "^1.0.0"
+      "version": "^2.0.0"
+    }
+  ]
+}
+```
+
+```json lines
+{
+  "additionBinaryFile": [
+    "DirTypeA/img/aaa.png",
+    "DirTypeA/img/bbb.png",
+    "DirTypeB/img/aaa.png",
+    "DirTypeB/img/bbb.png",
+  ],
+  "addonPlugin": [
+    {
+      "modName": "BeautySelectorAddon",
+      "addonName": "BeautySelectorAddon",
+      "modVersion": "^2.0.0",
+      "params": {
+        types: [
+          {
+            "type": "TypeA",
+            "rootDir": "DirTypeA",
+            "imgFileList": [
+              "img/aaa.png",
+              "img/bbb.png",
+            ],
+          },
+          {
+            "type": "TypeB",
+            "rootDir": "DirTypeB",
+            "imgFileList": [
+              "img/aaa.png",
+              "img/bbb.png",
+            ],
+          }
+        ]
+      }
+    }
+  ],
+  "dependenceInfo": [
+    {
+      "modName": "BeautySelectorAddon",
+      "version": "^2.0.0"
     }
   ]
 }
