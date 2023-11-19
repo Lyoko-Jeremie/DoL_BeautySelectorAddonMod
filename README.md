@@ -41,6 +41,11 @@ this mod export addon:
     "typeB/img/aaa.png",
     "typeB/img/bbb.png",
   ],
+  "additionDir": [
+    // 也可以不使用 additionBinaryFile ，转而使用 additionDir 让打包器包含指定的整个目录下所有文件
+    "typeA",
+    "typeB"
+  ],
   "addonPlugin": [
     {
       "modName": "BeautySelectorAddon",
@@ -178,10 +183,18 @@ root--+
     // dont place here if the image file is placed in follow, this place are used by ImageLoaderHook
   ],
   "additionBinaryFile": [
-    "DirTypeA/img/aaa.png",
-    "DirTypeA/img/bbb.png",
-    "DirTypeB/img/aaa.png",
-    "DirTypeB/img/bbb.png",
+    // 可以使用 additionBinaryFile 列出所有文件
+    "typeA/imgFileListFileA.json",
+    "typeA/img/aaa.png",
+    "typeA/img/bbb.png",
+    "typeB/imgFileListFileB.json",
+    "typeB/img/aaa.png",
+    "typeB/img/bbb.png",
+  ],
+  "additionDir": [
+    // 也可以使用 additionDir 包含指定的整个目录下所有文件
+    "typeA",
+    "typeB"
   ],
   "addonPlugin": [
     {
