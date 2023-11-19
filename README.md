@@ -109,6 +109,11 @@ this mod export addon:
       "modName": "BeautySelectorAddon",
       "version": "^2.0.0"
     }
+    //  在type0模式下，不能使用 ImageLoaderHook
+    //    {
+    //      "modName": "ModLoader DoL ImageLoaderHook",
+    //      "version": "^2.3.0"
+    //    }
   ]
 }
 ```
@@ -125,6 +130,10 @@ root--+
 
 ```json lines
 {
+  "imgFileList": [
+    // 下面出现了的图片不要放这里，这里的图片给 ImageLoaderHook 使用
+    // dont place here if the image file is placed in follow, this place are used by ImageLoaderHook
+  ],
   "additionBinaryFile": [
     "img/aaa.png",
     "img/bbb.png"
@@ -164,6 +173,10 @@ root--+
 
 ```json lines
 {
+  "imgFileList": [
+    // 下面出现了的图片不要放这里，这里的图片给 ImageLoaderHook 使用
+    // dont place here if the image file is placed in follow, this place are used by ImageLoaderHook
+  ],
   "additionBinaryFile": [
     "DirTypeA/img/aaa.png",
     "DirTypeA/img/bbb.png",
@@ -176,7 +189,7 @@ root--+
       "addonName": "BeautySelectorAddon",
       "modVersion": "^2.0.0",
       "params": {
-        types: [
+        "types": [
           {
             "type": "TypeA",
             "imgFileListFile": "typeA/imgFileListFileA.json",
