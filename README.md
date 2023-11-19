@@ -58,7 +58,7 @@ this mod export addon:
         ],
         // 模式2： 多套美化的模式
         // 如果需要使用这个模式，上面的type字段和imgFileList字段必须不存在
-        types: [
+        "types": [
           {
             "type": "TypeA",
             "imgFileListFile": "typeA/imgFileListFileA.json",  // 一个文件，里面是一个数组，数组中的每个元素是一个图片文件的路径
