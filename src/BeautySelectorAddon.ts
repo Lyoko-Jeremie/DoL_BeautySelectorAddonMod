@@ -80,7 +80,7 @@ export class BeautySelectorAddonImgGetter implements IModImgGetter {
 
 // prefix_with_mod_name
 export const BeautySelectorAddonImgLruCache = new LRUCache<string, string>({
-    max: 20,
+    max: 30,
     ttl: 1000 * 60 * 1,
     dispose: (value: string, key: string, reason: LRUCache.DisposeReason) => {
         console.log('[BeautySelectorAddon] BeautySelectorAddonImgLruCache dispose', [value], [reason]);
