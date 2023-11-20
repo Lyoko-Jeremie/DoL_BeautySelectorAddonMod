@@ -9,6 +9,11 @@ this mod export addon:
 
 ---
 
+BeautySelectorAddon 的设计目的是无冲突地添加多套重复的美化，范围可以覆盖到整个游戏内所有原始图像
+
+the design purpose of BeautySelectorAddon is to add multiple sets of duplicate beautification without conflict, and the scope can cover all original images in the game
+
+
 此插件有三种运行模式：
 1. 模式0： 原版兼容模式，只有一套美化的模式，这个模式下，`addonPlugin[BeautySelectorAddon].params.type` 这个字段必须存在 ，   
    且 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段不能存在。   
@@ -19,6 +24,20 @@ this mod export addon:
    如果 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段存在且是个数组，则意味着会运行在模式1下   
 3. 模式2： 多套美化的模式   
    如果需要使用这个模式，上面的type字段和imgFileList字段必须不存在   
+
+this addon has three run mode:
+1. mode 0: original compatible mode, only one set of beautification mode, in this mode, 
+   `addonPlugin[BeautySelectorAddon].params.type` this field must exist,   
+   and `addonPlugin[BeautySelectorAddon].params.imgFileList` field cannot exist.   
+   Cannot use the ImageLoaderHook plugin, need to fill in the beautification type on `addonPlugin[BeautySelectorAddon].params.type`   
+   This mod cannot be used with ImageLoaderHook at the same time in this mode, 
+   otherwise problems will occur, because this mod will only process image loading requests that ImageLoaderHook cannot process.   
+   **This is a compatibility mode, if possible, please do not use this mode.**
+2. mode 1: only one set of beautification mode   
+   If the `addonPlugin[BeautySelectorAddon].params.imgFileList` field exists and is an array, it means that it will run in mode 1
+3. mode 2: multiple sets of beautification mode   
+   If you need to use this mode, the above type field and imgFileList field must not exist
+
 
 
 
