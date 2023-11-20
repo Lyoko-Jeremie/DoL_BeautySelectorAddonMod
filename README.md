@@ -10,7 +10,8 @@ this mod export addon:
 ---
 
 此插件有三种运行模式：
-1. 模式0： 原版兼容模式，只有一套美化的模式，这个模式下，这个字段必须存在。
+1. 模式0： 原版兼容模式，只有一套美化的模式，这个模式下，`addonPlugin[BeautySelectorAddon].params.type` 这个字段必须存在 ，
+   且 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段不能存在。
    不能使用 ImageLoaderHook 插件，需要在 `addonPlugin[BeautySelectorAddon].params.type` 上填写美化类型
    此模式下本mod不能与 ImageLoaderHook 共同使用，否则会出现问题，因为本mod只会处理 ImageLoaderHook 无法处理的图片加载请求
 2. 模式1： 只有一套美化的模式
@@ -32,7 +33,7 @@ this mod export addon:
     "img/bbb.png"
   ],
   "additionBinaryFile": [
-    // 如果要使用打包器，在模式1、2下，徐娅把用到的图片文件路径加入这个字段，打包器会自动把这些文件打包到zip中，这里不要列出imgFileList出现的文件
+    // 如果要使用打包器，在模式1、2下，需要把用到的图片文件路径加入这个字段，打包器会自动把这些文件打包到zip中，这里不要列出imgFileList出现的文件
     // ... 下面引用到的所有文件的完整路径，注意这里是相对与zip根目录的路径
     "typeA/imgFileListFileA.json",
     "typeA/img/aaa.png",
