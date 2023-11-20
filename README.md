@@ -10,14 +10,15 @@ this mod export addon:
 ---
 
 此插件有三种运行模式：
-1. 模式0： 原版兼容模式，只有一套美化的模式，这个模式下，`addonPlugin[BeautySelectorAddon].params.type` 这个字段必须存在 ，
-   且 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段不能存在。
-   不能使用 ImageLoaderHook 插件，需要在 `addonPlugin[BeautySelectorAddon].params.type` 上填写美化类型
-   此模式下本mod不能与 ImageLoaderHook 共同使用，否则会出现问题，因为本mod只会处理 ImageLoaderHook 无法处理的图片加载请求
-2. 模式1： 只有一套美化的模式
-   如果 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段存在且是个数组，则意味着会运行在模式1下
-3. 模式2： 多套美化的模式
-   如果需要使用这个模式，上面的type字段和imgFileList字段必须不存在
+1. 模式0： 原版兼容模式，只有一套美化的模式，这个模式下，`addonPlugin[BeautySelectorAddon].params.type` 这个字段必须存在 ，   
+   且 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段不能存在。   
+   不能使用 ImageLoaderHook 插件，需要在 `addonPlugin[BeautySelectorAddon].params.type` 上填写美化类型   
+   此模式下本mod不能与 ImageLoaderHook 共同使用，否则会出现问题，因为本mod只会处理 ImageLoaderHook 无法处理的图片加载请求。   
+   **这是个兼容模式，如果可能，请不要使用这个模式。**   
+2. 模式1： 只有一套美化的模式   
+   如果 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段存在且是个数组，则意味着会运行在模式1下   
+3. 模式2： 多套美化的模式   
+   如果需要使用这个模式，上面的type字段和imgFileList字段必须不存在   
 
 
 
