@@ -213,9 +213,9 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx {
 
     private table: Map<string, BSModItem> = new Map<string, BSModItem>();
 
-    // can re-order this list
     private typeOrder: TypeOrderItem[] = [];
 
+    // can re-order this list
     typeOrderUsed?: TypeOrderItem[];
 
     async registerMod(addonName: string, mod: ModInfo, modZip: ModZipReader) {
