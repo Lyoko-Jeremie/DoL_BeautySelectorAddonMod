@@ -289,7 +289,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx {
                 const imgFileListFile = await modZip.zip.file(L.imgFileListFile)?.async('string');
                 if (!imgFileListFile) {
                     console.error(`[BeautySelectorAddon] registerMod: imgFileListFile not found.`, [addonName, mod.name, mod, modZip, type, L]);
-                    this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile not found. this type will not be add.`);
+                    this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile[${L.imgFileListFile}] not found. this type will not be add.`);
                     continue;
                 }
                 let imgFileList: string[] = [];
@@ -306,7 +306,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx {
                     continue;
                 }
                 // calc real path in zip
-                const dirP = getDirFromPath(imgFileListFile);
+                const dirP = getDirFromPath(L.imgFileListFile);
                 const imgList = new Map<string, ModImgEx>(
                     imgFileList.map(T => {
                         const realPath = dirP + T;
@@ -349,7 +349,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx {
                     successCallback(src, layer, image);
                 };
                 image.onerror = (event) => {
-                    console.error('[BeautySelectorAddon] imageLoader replace error', [src]);
+                    console.error('[BeautySelectorAddon] imageLoader replace error', [src, event]);
                     this.logger.error(`[BeautySelectorAddon] imageLoader replace error: src[${src}]`);
                     errorCallback(src, layer, event);
                 };
