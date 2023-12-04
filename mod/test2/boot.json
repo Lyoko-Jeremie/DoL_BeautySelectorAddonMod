@@ -1,0 +1,46 @@
+{
+  "name": "test2",
+  "version": "1.0.0",
+  "styleFileList": [
+  ],
+  "scriptFileList_earlyload": [
+  ],
+  "scriptFileList_inject_early": [
+  ],
+  "scriptFileList_preload": [
+  ],
+  "scriptFileList": [
+  ],
+  "tweeFileList": [
+  ],
+  "imgFileList": [
+  ],
+  "imgFileReplaceList": [
+  ],
+  "additionFile": [],
+  "additionBinaryFile": [],
+  "additionDir": [
+    "TypeB"
+  ],
+  "addonPlugin": [
+    {
+      "modName": "BeautySelectorAddon",
+      "addonName": "BeautySelectorAddon",
+      "modVersion": "^2.0.0",
+      "params": {
+        "types": [
+          {
+            "type": "TypeB",
+            "imgFileListFile": "TypeB/files.json"
+          }
+        ]
+      }
+    }
+  ],
+  "dependenceInfo": [
+    {
+      "modName": "BeautySelectorAddon",
+      "version": "^2.0.0"
+    }
+  ]
+}
