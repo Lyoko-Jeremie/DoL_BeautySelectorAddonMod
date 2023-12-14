@@ -1,6 +1,7 @@
 
 # 这是 type2 的范例
 
+`boot.json` 文件
 ```json lines
 {
   "additionDir": [
@@ -16,7 +17,9 @@
         "types": [
           {     //  这是一个美化类型
             "type": "TypeB",
-            "imgFileListFile": "TypeB/files.json"   // 设置美化的根文件夹下的图片列表文件，这里的路径是相对于 boot.json 的路径
+            // 设置美化的根文件夹下的图片列表文件，这里的路径是相对于 boot.json 的路径。
+            // 这里写`TypeB/files.json`，也就意味着这个文件在`TypeB`文件夹下，并且这个`files.json`中列出的文件全都是相对于`TypeB`文件夹的路径（而不是相对于boot.json的路径）
+            "imgFileListFile": "TypeB/files.json"
           },
           {     //  这是另一个美化类型
             "type": "TypeC",
