@@ -20,7 +20,8 @@
   "additionFile": [],
   "additionBinaryFile": [],
   "additionDir": [
-    "TypeB"
+    "TypeB",
+    "TypeC"
   ],
   "addonPlugin": [
     {
@@ -32,6 +33,10 @@
           {
             "type": "TypeB",
             "imgFileListFile": "TypeB/files.json"
+          },
+          {
+            "type": "TypeC",
+            "imgFileListFile": "TypeC/files.json"
           }
         ]
       }
