@@ -57,9 +57,18 @@ export class BeautySelectorAddonImgGetter implements IModImgGetter {
     ) {
     }
 
+    imgCache?: string | undefined;
+
+    async forceCache() {
+        this.imgCache = await this.getBase64Image();
+    }
+
     async getBase64Image(lruCache?: IModImgGetterLRUCache) {
         // add mod prefix to cache path
         const key = `[${this.modName}]_${this.imgPath}`;
+        if (this.imgCache) {
+            return this.imgCache;
+        }
         const cache = (lruCache ?? BeautySelectorAddonImgLruCache).get(key);
         if (cache) {
             return cache;
