@@ -6,9 +6,11 @@
   "scripts": {
     "ts:w": "tsc -w -p ./src_boot/tsconfig.json",
     "webpack:w": "webpack -w -c ./webpack.config.js",
-    "======================": "",
+    "ts:src:w": "tsc -w -p ./src/tsconfig.json",
+    "======================2": "",
     "build:ts": "tsc -p ./src_boot/tsconfig.json",
-    "build:webpack": "webpack -c ./webpack.config.js"
+    "build:webpack": "webpack -c ./webpack.config.js",
+    "build:src:w": "tsc -p ./src/tsconfig.json"
   },
   "packageManager": "yarn@3.4.1",
   "dependencies": {
