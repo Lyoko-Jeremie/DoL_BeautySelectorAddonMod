@@ -15,6 +15,16 @@ import {every, isArray, isNil, isString} from 'lodash';
 import {LRUCache} from 'lru-cache';
 import {extname} from "./extname";
 import JSON5 from 'json5';
+import {
+    BeautySelectorAddonParamsType0,
+    BeautySelectorAddonParamsType1,
+    BeautySelectorAddonParamsType2,
+    BeautySelectorAddonParamsType2TypeItem,
+    BSModItem,
+    ModImgEx,
+    TypeOrderItem
+} from "./BeautySelectorAddonType";
+import {BeautySelectorAddonInterface} from "./BeautySelectorAddonInterface";
 
 // https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
 // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
@@ -98,22 +108,6 @@ export const BeautySelectorAddonImgLruCache = new LRUCache<string, string>({
     updateAgeOnHas: true,
 });
 
-export interface BeautySelectorAddonParamsType0 {
-}
-
-export interface BeautySelectorAddonParamsType1 {
-    type: string;
-    imgFileList: string[];
-}
-
-export interface BeautySelectorAddonParamsType2TypeItem {
-    type: string;
-    imgFileListFile: string;
-}
-
-export interface BeautySelectorAddonParamsType2 {
-    types: BeautySelectorAddonParamsType2TypeItem[];
-}
 
 export function isParamsType0(a: any): a is BeautySelectorAddonParamsType0 {
     return a
@@ -146,28 +140,6 @@ export function isParamsType2(a: any): a is BeautySelectorAddonParamsType2 {
         ;
 }
 
-export type BeautySelectorAddonParams =
-    BeautySelectorAddonParamsType0
-    | BeautySelectorAddonParamsType1
-    | BeautySelectorAddonParamsType2;
-
-export interface BSModItem {
-    name: string;
-    mod: ModInfo;
-    modZip: ModZipReader;
-
-    params: BeautySelectorAddonParams;
-
-    type: string[];
-    typeImg: Map<string, Map<string, ModImgEx>>;
-}
-
-export interface TypeOrderItem {
-    type: string;
-    modRef: BSModItem;
-    imgListRef: Map<string, ModImgEx>;
-}
-
 export function getDirFromPath(path: string) {
     if (path.endsWith('/') || path.endsWith('\\')) {
         // is dir
@@ -183,11 +155,7 @@ export function getDirFromPath(path: string) {
     return path.substring(0, lastSlash + 1);
 }
 
-export interface ModImgEx extends ModImg {
-    realPath: string;
-}
-
-export class BeautySelectorAddon implements AddonPluginHookPointEx {
+export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelectorAddonInterface {
     private logger: LogWrapper;
 
     constructor(
@@ -208,6 +176,22 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx {
                 },
             }
         );
+
+        const theName = this.gModUtils.getNowRunningModName();
+        if (!theName) {
+            console.error('[BeautySelectorAddon] init() (!theName).', [theName]);
+            this.logger.error(`[BeautySelectorAddon] init() [${theName}].`);
+            return;
+        }
+        const mod = this.gModUtils.getMod(theName);
+        if (!mod) {
+            console.error('[BeautySelectorAddon] init() (!mod). ', [theName]);
+            this.logger.error(`[BeautySelectorAddon] init() (!mod). [${theName}].`);
+            return;
+        }
+        console.log('[BeautySelectorAddon] register modRef done.', [theName]);
+        this.logger.log(`[BeautySelectorAddon] register modRef done. [${theName}].`);
+        mod.modRef = this;
     }
 
     onModLoaderLoadEnd() {
