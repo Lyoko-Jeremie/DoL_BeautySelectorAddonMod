@@ -1,6 +1,6 @@
 {
   "name": "BeautySelectorAddon",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "styleFileList": [
   ],
   "scriptFileList_earlyload": [
@@ -33,6 +33,14 @@
     {
       "modName": "ModLoader DoL ImageLoaderHook",
       "version": "^2.16.0"
+    },
+    {
+      "modName": "ModLoaderGui",
+      "version": "^1.6.0"
+    },
+    {
+      "modName": "ModSubUiAngularJs",
+      "version": "^1.1.0"
     }
   ]
 }
