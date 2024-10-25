@@ -6,6 +6,7 @@ import type {ModUtils} from "../../../dist-BeforeSC2/Utils";
 import type {
     IModImgGetter,
     IModImgGetterLRUCache,
+    ImgLruCacheItemType,
     ModBootJson,
     ModImg,
     ModInfo,
@@ -20,6 +21,8 @@ import {
     BeautySelectorAddonParamsType1,
     BeautySelectorAddonParamsType2,
     BeautySelectorAddonParamsType2TypeItem,
+    BeautySelectorAddonParamsType3,
+    BeautySelectorAddonParamsType3TypeItem,
     BSModItem,
     ModImgEx,
     TypeOrderItem
@@ -68,40 +71,54 @@ export class BeautySelectorAddonImgGetter implements IModImgGetter {
     }
 
     imgCache?: string | undefined;
+    invalid: boolean = false;
 
     async forceCache() {
         this.imgCache = await this.getBase64Image();
     }
 
-    async getBase64Image(lruCache?: IModImgGetterLRUCache) {
+    async getBase64Image() {
+        arguments.length > 0 && console.error('BeautySelectorAddonImgGetter getBase64Image() cannot have arguments.', arguments);
+        if (this.invalid) {
+            return undefined;
+        }
         // add mod prefix to cache path
         const key = `[${this.modName}]_${this.imgPath}`;
         if (this.imgCache) {
             return this.imgCache;
         }
-        const cache = (lruCache ?? BeautySelectorAddonImgLruCache).get(key);
+        const cache = BeautySelectorAddonImgLruCache.get(key);
         if (cache) {
-            return cache;
+            return cache.invalid ? undefined : cache.imageBase64;
         }
         const imgFile = this.zip.zip.file(this.imgPath);
         if (imgFile) {
             const data = await imgFile.async('base64');
             const imgCache = imgWrapBase64Url(this.imgPath, data);
-            (lruCache ?? BeautySelectorAddonImgLruCache).set(key, imgCache);
+            BeautySelectorAddonImgLruCache.set(key, {
+                imageBase64: imgCache,
+                invalid: false,
+            });
             return imgCache;
         }
+        this.invalid = true;
+        BeautySelectorAddonImgLruCache.set(key, {
+            imageBase64: '',
+            invalid: true,
+        });
         console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
         this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
-        return Promise.reject(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
+        return undefined;
+        // return Promise.reject(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
     }
 
 }
 
 // prefix_with_mod_name
-export const BeautySelectorAddonImgLruCache = new LRUCache<string, string>({
+export const BeautySelectorAddonImgLruCache = new LRUCache<string, ImgLruCacheItemType>({
     max: 30,
     ttl: 1000 * 60 * 1,
-    dispose: (value: string, key: string, reason: LRUCache.DisposeReason) => {
+    dispose: (value: ImgLruCacheItemType, key: string, reason: LRUCache.DisposeReason) => {
         console.log('[BeautySelectorAddon] BeautySelectorAddonImgLruCache dispose', [value], [reason]);
     },
     updateAgeOnGet: true,
@@ -392,7 +409,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             if (n) {
                 try {
                     // this may throw error
-                    return await n.getter.getBase64Image(BeautySelectorAddonImgLruCache);
+                    return await n.getter.getBase64Image();
                 } catch (e: Error | any) {
                     console.error('[BeautySelectorAddon] imageGetter error', [src, type, e]);
                     this.logger.error(`[BeautySelectorAddon] imageGetter error: src[${src}] type[${type}] e[${e?.message ? e.message : e}]`);
