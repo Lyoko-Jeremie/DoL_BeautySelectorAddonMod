@@ -197,11 +197,13 @@ root--+
 
 #### type2:
 
+type2 分 A / B 两种写法，具体见下
+
 ```json lines
 {
   "imgFileList": [
     // 下面出现了的图片不要放这里，这里的图片给 ImageLoaderHook 使用
-    // dont place here if the image file is placed in follow, this place are used by ImageLoaderHook
+    // don't place here if the image file is placed in follow, this place are used by ImageLoaderHook
   ],
   "additionBinaryFile": [
     // 可以使用 additionBinaryFile 列出所有文件
@@ -215,7 +217,9 @@ root--+
   "additionDir": [
     // 也可以使用 additionDir 包含指定的整个目录下所有文件
     "typeA",
-    "typeB"
+    "typeB",
+    
+    "typeC"
   ],
   "addonPlugin": [
     {
@@ -224,6 +228,7 @@ root--+
       "modVersion": "^2.0.0",
       "params": {
         "types": [
+          // type2A
           {
             "type": "TypeA",
             "imgFileListFile": "typeA/imgFileListFileA.json",
@@ -231,7 +236,16 @@ root--+
           {
             "type": "TypeB",
             "imgFileListFile": "typeB/imgFileListFileB.json",
+          },
+          // type2B
+          // 特别地，提供一种不需要编写 imgFileListFile.json 的方式
+          // 使用 `imgDir` 而不是 `imgFileListFile` 来指定图片根目录，这样会自动扫描目录下的所有文件并索引为图片
+          // 请注意，在这种情况下，这个目录下的所有文件都会被打包到zip中，并在浏览器请求时读取并加载其中的任何文件到内存，所以请不要放不属于图片的文件，或不需要使用的文件
+          {
+            "type": "TypeC",
+            "imgDir": "typeC/path/to/dir",
           }
+          // 请注意， `imgFileListFile` 与 `imgDir` 二选一， 不能同时存在
         ]
       }
     }
@@ -273,5 +287,13 @@ root---+
        |         |-img---+
        |                 |-aaa.png
        |                 |-bbb.png
+       |-typeC---+
+       |         |-path-+
+       |                |-to-+
+       |                     |-dir-+
+       |                           |-aaa.png
+       |                           |-bbb.png
+       |                           |-ccc.png
+       |
 
 ```
