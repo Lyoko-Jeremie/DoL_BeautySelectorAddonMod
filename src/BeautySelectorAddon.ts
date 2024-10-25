@@ -27,6 +27,10 @@ import {
 import {BeautySelectorAddonInterface} from "./BeautySelectorAddonInterface";
 import {traverseZipFolder} from "./utils/traverseZipFolder";
 import {getRelativePath} from "./utils/getRelativePath";
+import type {
+    ModSubUiAngularJsModeExportInterface
+} from "../../ModSubUiAngularJs/dist-ts/ModSubUiAngularJsModeExportInterface";
+import {StringTable} from "./GUI_StringTable/StringTable";
 
 // https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
 // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
@@ -217,13 +221,20 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         console.log('[BeautySelectorAddon] register modRef done.', [theName]);
         this.logger.log(`[BeautySelectorAddon] register modRef done. [${theName}].`);
         mod.modRef = this;
+        if (window.modLoaderGui_ModSubUiAngularJsService) {
+            this.typeOrderSubUi = new TypeOrderSubUi(window.modLoaderGui_ModSubUiAngularJsService, this);
+        }
     }
+
+    protected typeOrderSubUi?: TypeOrderSubUi;
 
     onModLoaderLoadEnd() {
 
         if (!this.typeOrderUsed) {
             this.typeOrderUsed = this.typeOrder;
         }
+
+        this.typeOrderSubUi?.init();
 
         console.log('[BeautySelectorAddon] all ok');
         this.logger.log('[BeautySelectorAddon] all ok');
@@ -232,6 +243,10 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
     private table: Map<string, BSModItem> = new Map<string, BSModItem>();
 
     private typeOrder: TypeOrderItem[] = [];
+
+    getTypeOrder() {
+        return this.typeOrder;
+    }
 
     // can re-order this list
     typeOrderUsed?: TypeOrderItem[];
@@ -474,4 +489,75 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             return;
         }
     }
+}
+
+class TypeOrderSubUi {
+    constructor(
+        public modSubUiAngularJsService: typeof window['modLoaderGui_ModSubUiAngularJsService'],
+        public beautySelectorAddon: BeautySelectorAddon,
+    ) {
+    }
+
+    init() {
+        this.modSubUiAngularJsService.addLifeTimeCallback('BeautySelectorAddon-TypeOrderSubUi', {
+            whenCreate: this.whenCreate.bind(this),
+        });
+    }
+
+    async whenCreate(Ref: ModSubUiAngularJsModeExportInterface) {
+        const typeAllList = this.beautySelectorAddon.getTypeOrder();
+        const typeAllSet = new Map<string, TypeOrderItem>(typeAllList.map(T => [T.type, T]));
+        const typeEnabledList = this.beautySelectorAddon.typeOrderUsed || [];
+        const typeDisabledList = typeAllList.filter(T => !typeEnabledList?.find(T2 => T2.type === T.type));
+        Ref.addComponentModGuiConfig({
+            selector: 'enable-order-component',
+            data: {
+                listEnabled: typeEnabledList.map(T => {
+                    return {
+                        key: T.type,
+                        str: T.type,
+                        selected: false,
+                    };
+                }),
+                listDisabled: typeDisabledList.map(T => {
+                    return {
+                        key: T.type,
+                        str: T.type,
+                        selected: false,
+                    };
+                }),
+                onChange: async (
+                    action: any,
+                    listEnabled: {
+                        key: string | number,
+                        str: string,
+                        selected: boolean,
+                    }[],
+                    listDisabled: {
+                        key: string | number,
+                        str: string,
+                        selected: boolean,
+                    }[],
+                    selectedKeyEnabled: string | number,
+                    selectedKeyDisabled: string | number,
+                ) => {
+                    // console.log('onChange', [action, listEnabled, listDisabled, selectedKeyEnabled, selectedKeyDisabled]);
+                    this.beautySelectorAddon.typeOrderUsed = listEnabled.map(T => typeAllSet.get(T.key as string)).filter((T): T is TypeOrderItem => !!T);
+                    // const enabledSet = new Set(this.beautySelectorAddon.typeOrderUsed.map(T => T.type));
+                },
+                noHrSplit: true,
+                buttonClass: 'btn btn-sm btn-secondary',
+                text: {
+                    MoveEnabledSelectedItemUp: StringTable.MoveEnabledSelectedItemUp,
+                    MoveEnabledSelectedItemDown: StringTable.MoveEnabledSelectedItemDown,
+                    EnableSelectedItem: StringTable.EnableSelectedItem,
+                    DisableSelectedItem: StringTable.DisableSelectedItem,
+                    MoveDisabledSelectedItemUp: StringTable.MoveDisabledSelectedItemUp,
+                    MoveDisabledSelectedItemDown: StringTable.MoveDisabledSelectedItemDown,
+                    title: StringTable.TypeGuiTitle,
+                },
+            },
+        });
+    }
+
 }

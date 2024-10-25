@@ -11,5 +11,7 @@ declare global {
 
         addonBeautySelectorAddon: BeautySelectorAddon;
         modImgLoaderHooker: ImgLoaderHooker;
+
+        modLoaderGui_ModSubUiAngularJsService: ModSubUiAngularJsService;
     }
 }
