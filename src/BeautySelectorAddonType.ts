@@ -26,13 +26,18 @@ export interface BeautySelectorAddonParamsType1 {
     imgFileList: string[];
 }
 
-export interface BeautySelectorAddonParamsType2TypeItem {
+export interface BeautySelectorAddonParamsType2ATypeItem {
     type: string;
     imgFileListFile: string;
 }
 
+export interface BeautySelectorAddonParamsType2BTypeItem {
+    type: string;
+    imgDir: string;
+}
+
 export interface BeautySelectorAddonParamsType2 {
-    types: BeautySelectorAddonParamsType2TypeItem[];
+    types: (BeautySelectorAddonParamsType2ATypeItem | BeautySelectorAddonParamsType2BTypeItem)[];
 }
 
 export type BeautySelectorAddonParams =

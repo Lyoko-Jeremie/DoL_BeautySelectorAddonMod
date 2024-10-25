@@ -19,15 +19,14 @@ import JSON5 from 'json5';
 import {
     BeautySelectorAddonParamsType0,
     BeautySelectorAddonParamsType1,
-    BeautySelectorAddonParamsType2,
-    BeautySelectorAddonParamsType2TypeItem,
-    BeautySelectorAddonParamsType3,
-    BeautySelectorAddonParamsType3TypeItem,
+    BeautySelectorAddonParamsType2, BeautySelectorAddonParamsType2ATypeItem, BeautySelectorAddonParamsType2BTypeItem,
     BSModItem,
     ModImgEx,
     TypeOrderItem
 } from "./BeautySelectorAddonType";
 import {BeautySelectorAddonInterface} from "./BeautySelectorAddonInterface";
+import {traverseZipFolder} from "./utils/traverseZipFolder";
+import {getRelativePath} from "./utils/getRelativePath";
 
 // https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
 // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
@@ -142,10 +141,19 @@ export function isParamsType1(a: any): a is BeautySelectorAddonParamsType1 {
         ;
 }
 
-export function isParamsType2Item(a: any): a is BeautySelectorAddonParamsType2TypeItem {
+export function isParamsType2AItem(a: any): a is BeautySelectorAddonParamsType2ATypeItem {
     return a
         && isString(a.type)
         && isString(a.imgFileListFile)
+        && isNil(a.imgDir)
+        ;
+}
+
+export function isParamsType2BItem(a: any): a is BeautySelectorAddonParamsType2BTypeItem {
+    return a
+        && isString(a.type)
+        && isString(a.imgDir)
+        && isNil(a.imgFileListFile)
         ;
 }
 
@@ -153,7 +161,7 @@ export function isParamsType2(a: any): a is BeautySelectorAddonParamsType2 {
     return a
         && isNil(a.type)
         && isNil(a.imgFileList)
-        && isArray(a.types) && every(a.types, isParamsType2Item)
+        && isArray(a.types) && every(a.types, T => isParamsType2AItem(T) || isParamsType2BItem(T))
         ;
 }
 
@@ -296,45 +304,73 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] already exist in otherModeName[${existType.modRef.name}]. this type will not be add.`);
                     continue;
                 }
-                const imgFileListFile = await modZip.zip.file(L.imgFileListFile)?.async('string');
-                if (!imgFileListFile) {
-                    console.error(`[BeautySelectorAddon] registerMod: imgFileListFile not found.`, [addonName, mod.name, mod, modZip, type, L]);
-                    this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile[${L.imgFileListFile}] not found. this type will not be add.`);
-                    continue;
-                }
-                let imgFileList: string[] = [];
-                try {
-                    imgFileList = JSON5.parse(imgFileListFile);
-                    if (!(isArray(imgFileList) && every(imgFileList, isString))) {
-                        console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a string array.`, [addonName, mod.name, mod, modZip, type, L]);
-                        this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a string array. this type will not be add.`);
+                if (isParamsType2AItem(L)) {
+                    const imgFileListFile = await modZip.zip.file(L.imgFileListFile)?.async('string');
+                    if (!imgFileListFile) {
+                        console.error(`[BeautySelectorAddon] registerMod: imgFileListFile not found.`, [addonName, mod.name, mod, modZip, type, L]);
+                        this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile[${L.imgFileListFile}] not found. this type will not be add.`);
                         continue;
                     }
-                } catch (e: Error | any) {
-                    console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a valid json.`, [addonName, mod.name, mod, modZip, type, L]);
-                    this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a valid json. this type will not be add.`);
-                    continue;
+                    let imgFileList: string[] = [];
+                    try {
+                        imgFileList = JSON5.parse(imgFileListFile);
+                        if (!(isArray(imgFileList) && every(imgFileList, isString))) {
+                            console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a string array.`, [addonName, mod.name, mod, modZip, type, L]);
+                            this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a string array. this type will not be add.`);
+                            continue;
+                        }
+                    } catch (e: Error | any) {
+                        console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a valid json.`, [addonName, mod.name, mod, modZip, type, L]);
+                        this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a valid json. this type will not be add.`);
+                        continue;
+                    }
+                    // calc real path in zip
+                    const dirP = getDirFromPath(L.imgFileListFile);
+                    const imgList = new Map<string, ModImgEx>(
+                        imgFileList.map(T => {
+                            const realPath = dirP + T;
+                            return [T, {
+                                path: T,
+                                realPath: realPath,
+                                getter: new BeautySelectorAddonImgGetter(modName, modZip, realPath, this.logger),
+                            }];
+                        }),
+                    );
+                    BS.typeImg.set(type, imgList);
+                    BS.type.push(type);
+
+                    this.typeOrder.push({
+                        type: type,
+                        modRef: BS,
+                        imgListRef: imgList,
+                    });
+                    this.table.set(type, BS);
+                } else if (isParamsType2BItem(L)) {
+                    const fileList = await traverseZipFolder(modZip.zip, L.imgDir);
+                    const imgList = new Map<string, ModImgEx>(
+                        fileList.map(T => {
+                            const realPath = T.path;
+                            const path = getRelativePath(realPath, L.imgDir);
+                            return [path, {
+                                path: path,
+                                realPath: realPath,
+                                getter: new BeautySelectorAddonImgGetter(modName, modZip, realPath, this.logger),
+                            }];
+                        }),
+                    );
+                    BS.typeImg.set(type, imgList);
+                    BS.type.push(type);
+
+                    this.typeOrder.push({
+                        type: type,
+                        modRef: BS,
+                        imgListRef: imgList,
+                    });
+                    this.table.set(type, BS);
+                } else {
+                    // never go here
+                    throw new Error(`[BeautySelectorAddon] registerMod: invalid type. [${addonName}] [${mod.name}] [${type}]. never go there.`);
                 }
-                // calc real path in zip
-                const dirP = getDirFromPath(L.imgFileListFile);
-                const imgList = new Map<string, ModImgEx>(
-                    imgFileList.map(T => {
-                        const realPath = dirP + T;
-                        return [T, {
-                            path: T,
-                            realPath: realPath,
-                            getter: new BeautySelectorAddonImgGetter(modName, modZip, realPath, this.logger),
-                        }];
-                    }),
-                );
-                BS.typeImg.set(type, imgList);
-                BS.type.push(type);
-                this.typeOrder.push({
-                    type: type,
-                    modRef: BS,
-                    imgListRef: imgList,
-                });
-                this.table.set(type, BS);
             }
         } else {
             console.error(`[BeautySelectorAddon] registerMod: invalid params`, [addonName, mod.name, mod, modZip]);
