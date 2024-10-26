@@ -206,6 +206,8 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             }
         );
         this.IdbKeyValRef = this.gModUtils.getIdbKeyValRef();
+        this.IdbRef = this.gModUtils.getIdbRef();
+        this.cachedFileList = new CachedFileList(this.gModUtils, this.IdbKeyValRef, this.IdbRef);
 
         const theName = this.gModUtils.getNowRunningModName();
         if (!theName) {
@@ -227,6 +229,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         }
     }
 
+    protected cachedFileList?: CachedFileList;
     protected typeOrderSubUi?: TypeOrderSubUi;
 
     async onModLoaderLoadEnd() {
@@ -261,6 +264,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             return;
         }
         const modName = mod.name;
+        const modHash = modZip.modZipReaderHash;
         if (isParamsType0(ad.params)) {
         } else if (isParamsType1(ad.params)) {
             const params: BeautySelectorAddonParamsType1 = ad.params;
@@ -363,6 +367,8 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     });
                     this.table.set(type, BS);
                 } else if (isParamsType2BItem(L)) {
+                    // this.getCachedFileList(modName, modHash.toString(), type);
+
                     const fileList = await traverseZipFolder(modZip.zip, L.imgDir);
                     const imgList = new Map<string, ModImgEx>(
                         fileList.map(T => {
@@ -546,10 +552,11 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
     // customStore?: UseStore;
     customStore?: ReturnType<ReturnType<ModUtils['getIdbKeyValRef']>['createStore']>;
     IdbKeyValRef: ReturnType<ModUtils['getIdbKeyValRef']>;
+    IdbRef: ReturnType<ModUtils['getIdbRef']>;
 
 }
 
-class TypeOrderSubUi {
+export class TypeOrderSubUi {
     constructor(
         public modSubUiAngularJsService: typeof window['modLoaderGui_ModSubUiAngularJsService'],
         public beautySelectorAddon: BeautySelectorAddon,
@@ -620,4 +627,44 @@ class TypeOrderSubUi {
         });
     }
 
+}
+
+export class CachedFileList {
+
+    constructor(
+        public gModUtils: ModUtils,
+        public IdbKeyValRef: ReturnType<ModUtils['getIdbKeyValRef']>,
+        public IdbRef: ReturnType<ModUtils['getIdbRef']>,
+    ) {
+    }
+
+    dbRef?: Awaited<ReturnType<ReturnType<ModUtils['getIdbRef']>['idb_openDB']>>;
+
+    isInit = false;
+
+    protected async iniCacheCustomStore() {
+        if (!this.isInit) {
+            const loaderKeyConfig = this.gModUtils.getModLoader().getLoaderKeyConfig();
+            this.BeautySelectorAddon_dbNameCacheFileList = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_dbNameCacheFileList, this.BeautySelectorAddon_dbNameCacheFileList);
+            this.BeautySelectorAddon_storeNameCacheFileList = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_storeNameCacheFileList, this.BeautySelectorAddon_storeNameCacheFileList);
+            // this.customStoreCache = this.IdbKeyValRef.createStore(this.BeautySelectorAddon_dbNameCacheFileList, this.BeautySelectorAddon_storeNameCacheFileList);
+            this.dbRef = await this.IdbRef.idb_openDB(this.BeautySelectorAddon_dbNameCacheFileList);
+        }
+        this.isInit = true;
+    }
+
+    BeautySelectorAddon_dbNameCacheFileList: string = 'BeautySelectorAddon';
+    BeautySelectorAddon_storeNameCacheFileList: string = 'BeautySelectorAddon_storeNameCacheFileList';
+    // customStoreCache?: ReturnType<ReturnType<ModUtils['getIdbKeyValRef']>['createStore']>;
+
+    // async getCachedFileList(modName: string, modHashString: string, type: string) {
+    //     await this.iniCacheCustomStore();
+    //     const hashKey = `${modName}_${modHashString}_${type}`;
+    //
+    // }
+    //
+    // async writeCachedFileList(modName: string, modHashString: string, type: string, fileList: string[]) {
+    //     await this.iniCacheCustomStore();
+    //
+    // }
 }
