@@ -201,7 +201,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             'BeautySelectorAddon',
             {
                 ModLoaderLoadEnd: async () => {
-                    this.onModLoaderLoadEnd();
+                    await this.onModLoaderLoadEnd();
                 },
             }
         );
@@ -229,13 +229,14 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
 
     protected typeOrderSubUi?: TypeOrderSubUi;
 
-    onModLoaderLoadEnd() {
+    async onModLoaderLoadEnd() {
 
         if (!this.typeOrderUsed) {
             this.typeOrderUsed = this.typeOrder;
         }
+        await this.loadSavedOrder();
 
-        this.typeOrderSubUi?.init();
+        await this.typeOrderSubUi?.init();
 
         console.log('[BeautySelectorAddon] all ok');
         this.logger.log('[BeautySelectorAddon] all ok');
@@ -555,14 +556,13 @@ class TypeOrderSubUi {
     ) {
     }
 
-    init() {
+    async init() {
         this.modSubUiAngularJsService.addLifeTimeCallback('BeautySelectorAddon-TypeOrderSubUi', {
             whenCreate: this.whenCreate.bind(this),
         });
     }
 
     async whenCreate(Ref: ModSubUiAngularJsModeExportInterface) {
-        await this.beautySelectorAddon.loadSavedOrder();
 
         const typeAllList = this.beautySelectorAddon.getTypeOrder();
         const typeAllSet = new Map<string, TypeOrderItem>(typeAllList.map(T => [T.type, T]));
