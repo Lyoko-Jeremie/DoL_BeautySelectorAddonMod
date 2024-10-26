@@ -8,7 +8,7 @@ export const StringTable_CN: StringTableType = {
     DisableSelectedItem: '禁用选中的 Type',
     MoveDisabledSelectedItemUp: '上移选中的已禁用的 Type',
     MoveDisabledSelectedItemDown: '下移选中的已禁用的 Type',
-    TypeGuiTitle: 'BeautySelectorAddon 启用及排序管理',
+    TypeGuiTitle: 'BeautySelectorAddon 启用及排序管理(立即生效)',
 
 
     errorMessage2I18N(s: string): string {

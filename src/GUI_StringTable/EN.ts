@@ -8,7 +8,7 @@ export const StringTable_EN: StringTableType = {
     DisableSelectedItem: 'Disable Selected Type',
     MoveDisabledSelectedItemUp: 'Move Selected Disabled Type Up',
     MoveDisabledSelectedItemDown: 'Move Selected Disabled Type Down',
-    TypeGuiTitle: 'Type Enable And Order Manager',
+    TypeGuiTitle: 'Type Enable And Order Manager (Effective immediately)',
 
     errorMessage2I18N(s: string): string {
         return s;
