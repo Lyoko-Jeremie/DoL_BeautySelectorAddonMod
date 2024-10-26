@@ -32,6 +32,7 @@ export interface TraverseOptions {
  * @param options 遍历选项
  * @returns 文件列表，可包含文件内容
  */
+
 export async function traverseZipFolder(
     zip: JSZip,
     folderPath: string,
@@ -43,58 +44,47 @@ export async function traverseZipFolder(
         contentFormat = 'string',
     } = options;
 
-    // 标准化路径格式
     const normalizedPath = folderPath.endsWith('/') ? folderPath : folderPath + '/';
-
-    // 保存所有待处理的文件夹路径
     const folderStack: string[] = [normalizedPath];
-
-    // 保存结果
     const result: ZipFile[] = [];
 
-    // 使用栈进行迭代
     while (folderStack.length > 0) {
         const currentPath = folderStack.pop()!;
+        const entries = Object.entries(zip.files).filter(([path]) => path.startsWith(currentPath));
 
-        // 遍历 zip 中的所有文件和文件夹
-        for (const [path, file] of Object.entries(zip.files)) {
-            // 检查是否在当前处理的文件夹下
-            if (path.startsWith(currentPath)) {
-                const relativePath = path.slice(currentPath.length);
+        for (const [path, file] of entries) {
+            const relativePath = path.slice(currentPath.length);
 
-                // 跳过当前文件夹本身
-                if (relativePath === '') {
-                    continue;
+            if (relativePath === '') continue;
+
+            if (relativePath.includes('/') && !relativePath.slice(relativePath.indexOf('/') + 1).includes('/')) {
+                folderStack.push(path);
+            } else if (!relativePath.includes('/')) {
+                const zipFile: ZipFile = {path: path};
+
+                if (getFileRef) {
+                    zipFile.file = file;
                 }
 
-                // 如果是直接子文件夹，将其加入待处理栈
-                if (relativePath.includes('/') &&
-                    !relativePath.slice(relativePath.indexOf('/') + 1).includes('/')) {
-                    folderStack.push(path);
-                }
-                // 如果是直接子文件，加入结果列表
-                else if (!relativePath.includes('/')) {
-                    const zipFile: ZipFile = {
-                        path: path,
-                    };
-
-                    if (getFileRef) {
-                        zipFile.file = file;
-                    }
-
-                    if (readContent && !file.dir) {
-                        try {
-                            // 异步读取文件内容
-                            zipFile.content = await file.async(contentFormat);
-                        } catch (error) {
-                            console.error(`Failed to read content of ${path}:`, error);
-                        }
-                    }
-
+                if (readContent && !file.dir) {
+                    result.push(zipFile);
+                } else {
                     result.push(zipFile);
                 }
             }
         }
+    }
+
+    if (readContent) {
+        await Promise.all(result.map(async (zipFile) => {
+            if (zipFile.file && !zipFile.file.dir) {
+                try {
+                    zipFile.content = await zipFile.file.async(contentFormat);
+                } catch (error) {
+                    console.error(`Failed to read content of ${zipFile.path}:`, error);
+                }
+            }
+        }));
     }
 
     return result;
