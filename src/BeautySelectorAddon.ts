@@ -22,7 +22,7 @@ import {
     BeautySelectorAddonParamsType2, BeautySelectorAddonParamsType2ATypeItem, BeautySelectorAddonParamsType2BTypeItem,
     BSModItem,
     ModImgEx,
-    TypeOrderItem
+    TypeOrderItem,
 } from "./BeautySelectorAddonType";
 import {BeautySelectorAddonInterface} from "./BeautySelectorAddonInterface";
 import {traverseZipFolder} from "./utils/traverseZipFolder";
@@ -205,6 +205,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 },
             }
         );
+        this.IdbKeyValRef = this.gModUtils.getIdbKeyValRef();
 
         const theName = this.gModUtils.getNowRunningModName();
         if (!theName) {
@@ -489,6 +490,62 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             return;
         }
     }
+
+    async iniCustomStore() {
+        if (!this.customStore) {
+            const loaderKeyConfig = this.gModUtils.getModLoader().getLoaderKeyConfig();
+            this.BeautySelectorAddon_dbName = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_dbName, this.BeautySelectorAddon_dbName);
+            this.BeautySelectorAddon_storeName = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_storeName, this.BeautySelectorAddon_storeName);
+            this.BeautySelectorAddon_OrderSaveKey = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_OrderSaveKey, this.BeautySelectorAddon_OrderSaveKey);
+            this.customStore = this.IdbKeyValRef.createStore(this.BeautySelectorAddon_dbName, this.BeautySelectorAddon_storeName);
+        }
+    }
+
+    async loadSavedOrder() {
+        await this.iniCustomStore();
+        const listFile = await this.IdbKeyValRef.keyval_get(this.BeautySelectorAddon_OrderSaveKey, this.customStore);
+        if (!listFile) {
+            return undefined;
+        }
+        let list: string[];
+        try {
+            list = JSON5.parse(listFile);
+        } catch (e) {
+            console.error(e);
+            return undefined;
+        }
+        if (!(isArray(list) && list.every(isString))) {
+            return undefined;
+        }
+        const nn = new Map(this.typeOrder.map(T => [T.type, T]));
+        if (list.every(T => nn.has(T))) {
+            this.typeOrderUsed = list.map(T => nn.get(T)!);
+            console.log('[BeautySelectorAddon] loadSavedOrder: ok.', [list]);
+        } else {
+            const nt = list.filter(T => !nn.has(T));
+            console.log('[BeautySelectorAddon] loadSavedOrder: some type not found. reset.', [list, nt]);
+            await this.saveOrder(this.typeOrder.map(T => T.type));
+            this.typeOrderUsed = this.typeOrder;
+        }
+    }
+
+    async saveOrder(list: string[]) {
+        await this.iniCustomStore();
+        if (!(isArray(list) && list.every(isString))) {
+            // never go there
+            throw new Error(`[BeautySelectorAddon] saveOrder: invalid list`);
+        }
+        await this.IdbKeyValRef.keyval_set(this.BeautySelectorAddon_OrderSaveKey, JSON.stringify(list), this.customStore);
+    }
+
+    BeautySelectorAddon_dbName: string = 'BeautySelectorAddon';
+    BeautySelectorAddon_storeName: string = 'BeautySelectorAddon';
+    BeautySelectorAddon_OrderSaveKey = 'BeautySelectorAddon_OrderSaveKey';
+
+    // customStore?: UseStore;
+    customStore?: ReturnType<ReturnType<ModUtils['getIdbKeyValRef']>['createStore']>;
+    IdbKeyValRef: ReturnType<ModUtils['getIdbKeyValRef']>;
+
 }
 
 class TypeOrderSubUi {
@@ -505,6 +562,8 @@ class TypeOrderSubUi {
     }
 
     async whenCreate(Ref: ModSubUiAngularJsModeExportInterface) {
+        await this.beautySelectorAddon.loadSavedOrder();
+
         const typeAllList = this.beautySelectorAddon.getTypeOrder();
         const typeAllSet = new Map<string, TypeOrderItem>(typeAllList.map(T => [T.type, T]));
         const typeEnabledList = this.beautySelectorAddon.typeOrderUsed || [];
@@ -544,6 +603,7 @@ class TypeOrderSubUi {
                     // console.log('onChange', [action, listEnabled, listDisabled, selectedKeyEnabled, selectedKeyDisabled]);
                     this.beautySelectorAddon.typeOrderUsed = listEnabled.map(T => typeAllSet.get(T.key as string)).filter((T): T is TypeOrderItem => !!T);
                     // const enabledSet = new Set(this.beautySelectorAddon.typeOrderUsed.map(T => T.type));
+                    await this.beautySelectorAddon.saveOrder(this.beautySelectorAddon.typeOrderUsed.map(T => T.type));
                 },
                 noHrSplit: true,
                 buttonClass: 'btn btn-sm btn-secondary',
