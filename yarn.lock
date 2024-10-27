@@ -1132,6 +1132,7 @@ __metadata:
     css-loader: ^6.8.1
     fork-ts-checker-webpack-plugin: ^8.0.0
     html-webpack-plugin: ^5.5.3
+    idb: ^8.0.0
     json5: ^2.2.3
     jszip: ^3.10.1
     lodash: ^4.17.21
@@ -3496,6 +3497,13 @@ __metadata:
   peerDependencies:
     postcss: ^8.1.0
   checksum: 5c324d283552b1269cfc13a503aaaa172a280f914e5b81544f3803bc6f06a3b585fb79f66f7c771a2c052db7982c18bf92d001e3b47282e3abbbb4c4cc488d68
+  languageName: node
+  linkType: hard
+
+"idb@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "idb@npm:8.0.0"
+  checksum: a9c6176c176dc1a73520ae906d33fcda8a6f6068cf64027e196763d4ad70b088b7141650ed68f3604e0f0ccd1a123f6b8a435ba5e4514f42ada3460c23b6747a
   languageName: node
   linkType: hard
 
