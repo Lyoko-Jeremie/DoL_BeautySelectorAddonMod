@@ -31,6 +31,8 @@ import type {
     ModSubUiAngularJsModeExportInterface
 } from "../../ModSubUiAngularJs/dist-ts/ModSubUiAngularJsModeExportInterface";
 import {StringTable} from "./GUI_StringTable/StringTable";
+import {openDB as idb_openDB, deleteDB as idb_deleteDB, IDBPDatabase, IDBPTransaction, StoreNames, DBSchema} from 'idb';
+import {IndexNames} from "idb/build/entry";
 
 // https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
 // https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
@@ -206,8 +208,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             }
         );
         this.IdbKeyValRef = this.gModUtils.getIdbKeyValRef();
-        this.IdbRef = this.gModUtils.getIdbRef();
-        this.cachedFileList = new CachedFileList(this.gModUtils, this.IdbKeyValRef, this.IdbRef);
+        this.cachedFileList = new CachedFileList(this.gModUtils);
 
         const theName = this.gModUtils.getNowRunningModName();
         if (!theName) {
@@ -229,7 +230,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         }
     }
 
-    protected cachedFileList?: CachedFileList;
+    protected cachedFileList: CachedFileList;
     protected typeOrderSubUi?: TypeOrderSubUi;
 
     async onModLoaderLoadEnd() {
@@ -240,6 +241,8 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         await this.loadSavedOrder();
 
         await this.typeOrderSubUi?.init();
+
+        this.cachedFileList.close();
 
         console.log('[BeautySelectorAddon] all ok');
         this.logger.log('[BeautySelectorAddon] all ok');
@@ -265,6 +268,8 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         }
         const modName = mod.name;
         const modHash = modZip.modZipReaderHash;
+        await this.cachedFileList.removeChangedModFileByHash(modName, modHash.toString());
+
         if (isParamsType0(ad.params)) {
         } else if (isParamsType1(ad.params)) {
             const params: BeautySelectorAddonParamsType1 = ad.params;
@@ -367,12 +372,15 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     });
                     this.table.set(type, BS);
                 } else if (isParamsType2BItem(L)) {
-                    // this.getCachedFileList(modName, modHash.toString(), type);
+                    let fileList = await this.cachedFileList.getCachedFileList(modName, modHash.toString(), type);
+                    if (!fileList) {
+                        fileList = (await traverseZipFolder(modZip.zip, L.imgDir)).map(T => T.path);
+                        await this.cachedFileList.writeCachedFileList(modName, modHash.toString(), type, fileList);
+                    }
 
-                    const fileList = await traverseZipFolder(modZip.zip, L.imgDir);
                     const imgList = new Map<string, ModImgEx>(
                         fileList.map(T => {
-                            const realPath = T.path;
+                            const realPath = T;
                             const path = getRelativePath(realPath, L.imgDir);
                             return [path, {
                                 path: path,
@@ -552,8 +560,6 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
     // customStore?: UseStore;
     customStore?: ReturnType<ReturnType<ModUtils['getIdbKeyValRef']>['createStore']>;
     IdbKeyValRef: ReturnType<ModUtils['getIdbKeyValRef']>;
-    IdbRef: ReturnType<ModUtils['getIdbRef']>;
-
 }
 
 export class TypeOrderSubUi {
@@ -629,42 +635,161 @@ export class TypeOrderSubUi {
 
 }
 
+export interface CachedFileListDbSchema extends DBSchema {
+    cachedFileList: {
+        value: {
+            modName: string,
+            modHashString: string,
+            type: string,
+            fileListJsonString: string,
+            hashKey: string, // `${modName}_${modHashString}_${type}`
+        },
+        key: string,
+        indexes: {
+            'by-hashKey': string,
+            'by-modName': string,
+            'by-modHashString': string,
+            'by-type': string,
+            'by-modName-modHashString': [string, string],
+            'by-modName-type': [string, string],
+            'by-modName-modHashString-type': [string, string, string],
+        },
+    },
+}
+
 export class CachedFileList {
 
     constructor(
         public gModUtils: ModUtils,
-        public IdbKeyValRef: ReturnType<ModUtils['getIdbKeyValRef']>,
-        public IdbRef: ReturnType<ModUtils['getIdbRef']>,
     ) {
     }
 
-    dbRef?: Awaited<ReturnType<ReturnType<ModUtils['getIdbRef']>['idb_openDB']>>;
+    protected dbRef?: IDBPDatabase<CachedFileListDbSchema>;
 
-    isInit = false;
+    protected isInit = false;
+    protected isClose = false;
 
     protected async iniCacheCustomStore() {
+        if (this.isClose) {
+            console.error('[BeautySelectorAddon] iniCacheCustomStore: already close');
+            throw new Error('[BeautySelectorAddon] iniCacheCustomStore: already close');
+        }
         if (!this.isInit) {
             const loaderKeyConfig = this.gModUtils.getModLoader().getLoaderKeyConfig();
             this.BeautySelectorAddon_dbNameCacheFileList = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_dbNameCacheFileList, this.BeautySelectorAddon_dbNameCacheFileList);
-            this.BeautySelectorAddon_storeNameCacheFileList = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_storeNameCacheFileList, this.BeautySelectorAddon_storeNameCacheFileList);
-            // this.customStoreCache = this.IdbKeyValRef.createStore(this.BeautySelectorAddon_dbNameCacheFileList, this.BeautySelectorAddon_storeNameCacheFileList);
-            this.dbRef = await this.IdbRef.idb_openDB(this.BeautySelectorAddon_dbNameCacheFileList);
+
+            this.dbRef = await idb_openDB<CachedFileListDbSchema>(
+                this.BeautySelectorAddon_dbNameCacheFileList,
+                1,
+                {
+                    upgrade: (database: IDBPDatabase<CachedFileListDbSchema>, oldVersion: number, newVersion: number | null, transaction: IDBPTransaction<CachedFileListDbSchema, StoreNames<CachedFileListDbSchema>[], "versionchange">, event: IDBVersionChangeEvent) => {
+                        const cachedFileListStorage = database.createObjectStore('cachedFileList', {
+                            keyPath: 'hashKey',
+                        });
+                        cachedFileListStorage.createIndex('by-modName', 'modName');
+                        cachedFileListStorage.createIndex('by-modHashString', 'modHashString');
+                        cachedFileListStorage.createIndex('by-type', 'type');
+                        cachedFileListStorage.createIndex('by-modName-modHashString', ['modName', 'modHashString']);
+                        cachedFileListStorage.createIndex('by-modName-type', ['modName', 'type']);
+                        cachedFileListStorage.createIndex('by-modName-modHashString-type', ['modName', 'modHashString', 'type']);
+                    },
+                },
+            );
         }
         this.isInit = true;
     }
 
-    BeautySelectorAddon_dbNameCacheFileList: string = 'BeautySelectorAddon';
-    BeautySelectorAddon_storeNameCacheFileList: string = 'BeautySelectorAddon_storeNameCacheFileList';
-    // customStoreCache?: ReturnType<ReturnType<ModUtils['getIdbKeyValRef']>['createStore']>;
+    BeautySelectorAddon_dbNameCacheFileList: string = 'BeautySelectorAddon_dbNameCacheFileList';
 
-    // async getCachedFileList(modName: string, modHashString: string, type: string) {
-    //     await this.iniCacheCustomStore();
-    //     const hashKey = `${modName}_${modHashString}_${type}`;
-    //
-    // }
-    //
-    // async writeCachedFileList(modName: string, modHashString: string, type: string, fileList: string[]) {
-    //     await this.iniCacheCustomStore();
-    //
-    // }
+    async getCachedFileList(modName: string, modHashString: string, type: string) {
+        if (!this.isInit) {
+            console.error(`[BeautySelectorAddon] getCachedFileList: not init`);
+            throw new Error(`[BeautySelectorAddon] getCachedFileList: not init`);
+        }
+        const hashKey = `${modName}_${modHashString}_${type}`;
+
+        // const store = this.dbRef!.transaction('cachedFileList').objectStore('cachedFileList');
+        // await store.index('by-modName-modHashString-type').get([modName, modHashString, type]);
+        const r = await this.dbRef!.getFromIndex('cachedFileList', 'by-modName-modHashString-type', [modName, modHashString, type]);
+
+        if (!r) {
+            return undefined;
+        }
+
+        try {
+            const fileList = JSON.parse(r.fileListJsonString);
+            if (isArray(fileList) && every(fileList, isString)) {
+                return fileList;
+            }
+            // invalid , remove it
+            await this.dbRef!.delete('cachedFileList', r.hashKey);
+            return undefined;
+        } catch (e) {
+            console.error('[BeautySelectorAddon] getCachedFileList error', [r.fileListJsonString, e]);
+            return undefined;
+        }
+    }
+
+    async writeCachedFileList(modName: string, modHashString: string, type: string, fileList: string[]) {
+        if (!this.isInit) {
+            console.error(`[BeautySelectorAddon] writeCachedFileList: not init`);
+            throw new Error(`[BeautySelectorAddon] writeCachedFileList: not init`);
+        }
+        const hashKey = `${modName}_${modHashString}_${type}`;
+
+        const tans = this.dbRef!.transaction('cachedFileList', 'readwrite');
+        try {
+            const os = tans.objectStore('cachedFileList');
+
+            // check exist
+            const cc = await os.get(hashKey);
+            if (cc) {
+                await tans.done;
+                return false;
+            }
+
+            const fileListJsonString = JSON5.stringify(fileList);
+            const value = {
+                modName: modName,
+                modHashString: modHashString,
+                type: type,
+                fileListJsonString: fileListJsonString,
+                hashKey: hashKey,
+            };
+
+            await os.put(value);
+        } finally {
+            await tans.done;
+        }
+        return true;
+
+    }
+
+    async removeChangedModFileByHash(modName: string, modHashString: string) {
+        if (!this.isInit) {
+            console.error(`[BeautySelectorAddon] removeChangedModFileByHash: not init`);
+            throw new Error(`[BeautySelectorAddon] removeChangedModFileByHash: not init`);
+        }
+        // remove the item that same mod name but different hash
+        const tans = this.dbRef!.transaction('cachedFileList', 'readwrite');
+        try {
+            const os = tans.objectStore('cachedFileList');
+            const cc = await os.index('by-modName').getAll(modName);
+            for (const c of cc) {
+                if (c.modHashString !== modHashString) {
+                    await os.delete(c.hashKey);
+                }
+            }
+        } finally {
+            await tans.done;
+        }
+    }
+
+    close() {
+        this.dbRef?.close();
+        this.isInit = false;
+        this.isClose = true;
+        this.dbRef = undefined;
+    }
+
 }
