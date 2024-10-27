@@ -593,14 +593,14 @@ export class TypeOrderSubUi {
                 listEnabled: typeEnabledList.map(T => {
                     return {
                         key: T.type,
-                        str: T.type,
+                        str: `[${T.modRef.name}] ${T.type}`,
                         selected: false,
                     };
                 }),
                 listDisabled: typeDisabledList.map(T => {
                     return {
                         key: T.type,
-                        str: T.type,
+                        str: `[${T.modRef.name}] ${T.type}`,
                         selected: false,
                     };
                 }),
