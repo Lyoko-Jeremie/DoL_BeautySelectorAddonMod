@@ -32,7 +32,7 @@
   "dependenceInfo": [
     {
       "modName": "ModLoader",
-      "version": "^2.23.0"
+      "version": "^2.26.0"
     },
     {
       "modName": "ModLoader DoL ImageLoaderHook",
