@@ -1,5 +1,9 @@
 {
   "name": "BeautySelectorAddon",
+  "nikeName": {
+    "cn": "美化选择器",
+    "en": "Beautiful Selector"
+  },
   "version": "2.2.8",
   "styleFileList": [
   ],
