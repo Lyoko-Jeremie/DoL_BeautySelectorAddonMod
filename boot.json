@@ -1,10 +1,10 @@
 {
   "name": "BeautySelectorAddon",
-  "nikeName": {
+  "nickName": {
     "cn": "美化选择器",
     "en": "Beautiful Selector"
   },
-  "version": "2.2.9",
+  "version": "2.2.10",
   "styleFileList": [
   ],
   "scriptFileList_earlyload": [
@@ -32,7 +32,7 @@
   "dependenceInfo": [
     {
       "modName": "ModLoader",
-      "version": "^2.26.0"
+      "version": "^2.26.2"
     },
     {
       "modName": "ImageLoaderHook",

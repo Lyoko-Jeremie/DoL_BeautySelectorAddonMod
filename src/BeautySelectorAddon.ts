@@ -314,7 +314,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 return;
             }
             const BS: BSModItem = {
-                name: addonName,
+                name: mod.name,
                 mod: mod,
                 modZip: modZip,
                 type: [],
@@ -619,10 +619,14 @@ export class TypeOrderSubUi {
                     selectedKeyEnabled: string | number,
                     selectedKeyDisabled: string | number,
                 ) => {
-                    // console.log('onChange', [action, listEnabled, listDisabled, selectedKeyEnabled, selectedKeyDisabled]);
-                    this.beautySelectorAddon.typeOrderUsed = listEnabled.map(T => typeAllSet.get(T.key as string)).filter((T): T is TypeOrderItem => !!T);
-                    // const enabledSet = new Set(this.beautySelectorAddon.typeOrderUsed.map(T => T.type));
-                    await this.beautySelectorAddon.saveOrder(this.beautySelectorAddon.typeOrderUsed.map(T => T.type));
+                    try {
+                        // console.log('onChange', [action, listEnabled, listDisabled, selectedKeyEnabled, selectedKeyDisabled]);
+                        this.beautySelectorAddon.typeOrderUsed = listEnabled.map(T => typeAllSet.get(T.key as string)).filter((T): T is TypeOrderItem => !!T);
+                        // const enabledSet = new Set(this.beautySelectorAddon.typeOrderUsed.map(T => T.type));
+                        await this.beautySelectorAddon.saveOrder(this.beautySelectorAddon.typeOrderUsed.map(T => T.type));
+                    } catch (e) {
+                        console.error('[BeautySelectorAddon] onChange error', [e]);
+                    }
                 },
                 noHrSplit: true,
                 buttonClass: 'btn btn-sm btn-secondary',
