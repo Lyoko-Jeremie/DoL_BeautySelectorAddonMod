@@ -15,26 +15,27 @@ the design purpose of BeautySelectorAddon is to add multiple sets of duplicate b
 
 
 此插件有三种运行模式：
-1. 模式0： 原版兼容模式，只有一套美化的模式，这个模式下，`addonPlugin[BeautySelectorAddon].params.type` 这个字段必须存在 ，   
-   且 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段不能存在。   
-   不能使用 ImageLoaderHook 插件，需要在 `addonPlugin[BeautySelectorAddon].params.type` 上填写美化类型   
+1. 模式0： 原版兼容模式，只有一套美化的模式，这个模式下，`addonPlugin[BeautySelectorAddon].params` 这个字段必须存在 ，   
+   `addonPlugin[BeautySelectorAddon].params.type` 字段可选   
+   但 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段不能存在。   
+   不能使用 ImageLoaderHook 插件，可以在 `addonPlugin[BeautySelectorAddon].params.type` 上填写美化类型   
    此模式下本mod不能与 ImageLoaderHook 共同使用，否则会出现问题，因为本mod只会处理 ImageLoaderHook 无法处理的图片加载请求。   
-   **这是个兼容模式，如果可能，请不要使用这个模式。**   
-2. 模式1： 只有一套美化的模式   
-   如果 `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段存在且是个数组，则意味着会运行在模式1下   
+   **这是个兼容转换模式，如果可能，请不要使用这个模式。此模式主要用于将无人维护的使用 ImageLoaderHook 的mod转换为使用bsa**   
+2. 模式1： 只有一套美化的模式，这个模式下，`addonPlugin[BeautySelectorAddon].params.type` 这个字段必须存在     
+   `addonPlugin[BeautySelectorAddon].params.imgFileList` 字段存在且是个数组   
 3. 模式2： 多套美化的模式   
    如果需要使用这个模式，上面的type字段和imgFileList字段必须不存在   
 
 this addon has three run mode:
 1. mode 0: original compatible mode, only one set of beautification mode, in this mode, 
-   `addonPlugin[BeautySelectorAddon].params.type` this field must exist,   
-   and `addonPlugin[BeautySelectorAddon].params.imgFileList` field cannot exist.   
-   Cannot use the ImageLoaderHook plugin, need to fill in the beautification type on `addonPlugin[BeautySelectorAddon].params.type`   
-   This mod cannot be used with ImageLoaderHook at the same time in this mode, 
-   otherwise problems will occur, because this mod will only process image loading requests that ImageLoaderHook cannot process.   
-   **This is a compatibility mode, if possible, please do not use this mode.**
-2. mode 1: only one set of beautification mode   
-   If the `addonPlugin[BeautySelectorAddon].params.imgFileList` field exists and is an array, it means that it will run in mode 1
+   `addonPlugin[BeautySelectorAddon].params` this field must exist,   
+   `addonPlugin[BeautySelectorAddon].params.type` field is optional   
+   but `addonPlugin[BeautySelectorAddon].params.imgFileList` field cannot exist.   
+   cannot use ImageLoaderHook plugin, can fill in the beautification type on `addonPlugin[BeautySelectorAddon].params.type`   
+   this mode cannot be used together with ImageLoaderHook, otherwise problems will occur, because this mod will only process image loading requests that ImageLoaderHook cannot process.   
+   **This is a compatible conversion mode, if possible, please do not use this mode. This mode is mainly used to convert mods that are not maintained and use ImageLoaderHook to use bsa**
+2. mode 1: only one set of beautification mode, in this mode, `addonPlugin[BeautySelectorAddon].params.type` this field must exist   
+   `addonPlugin[BeautySelectorAddon].params.imgFileList` field exists and is an array
 3. mode 2: multiple sets of beautification mode   
    If you need to use this mode, the above type field and imgFileList field must not exist
 

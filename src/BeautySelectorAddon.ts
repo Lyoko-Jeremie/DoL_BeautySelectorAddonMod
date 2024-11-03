@@ -133,7 +133,7 @@ export const BeautySelectorAddonImgLruCache = new LRUCache<string, ImgLruCacheIt
 
 export function isParamsType0(a: any): a is BeautySelectorAddonParamsType0 {
     return a
-        && isString(a.type)
+        && (isString(a.type) || isNil(a.type))
         && isNil(a.imgFileList)
         && isNil(a.types)
         ;
@@ -275,6 +275,49 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         await this.cachedFileList.removeChangedModFileByHash(modName, modHash.toString());
 
         if (isParamsType0(ad.params)) {
+            // this is converted from ImageLoaderHook 2 BeautySelectorAddon
+
+            const params: BeautySelectorAddonParamsType0 = ad.params;
+            const type = params.type;
+
+            const typeName = type ? type : ('converted-' + modName);
+            if (this.table.has(typeName)) {
+                console.warn(`[BeautySelectorAddon] registerMod: Type0 typeName already exist`, [addonName, mod.name, mod, modZip, typeName, this.table.get(typeName)]);
+                this.logger.warn(`[BeautySelectorAddon] registerMod: Type0 typeName[${typeName}] already exist in [${this.table.get(typeName)!.name}]. this type will not be add.`);
+                return;
+            }
+
+            const oImg = mod.imgs;
+            const imgList = new Map<string, ModImgEx>(
+                oImg.map(T => {
+                    return [T.path, {
+                        path: T.path,
+                        realPath: T.path,
+                        getter: new BeautySelectorAddonImgGetter(modName, modZip, T.path, this.logger),
+                    }];
+                }),
+            );
+            // clean it
+            mod.imgs = [];
+
+            const BS = {
+                name: addonName,
+                mod: mod,
+                modZip: modZip,
+                type: [typeName],
+                params: ad.params,
+                typeImg: new Map<string, Map<string, ModImgEx>>([[typeName, imgList]]),
+            };
+            this.table.set(typeName, BS);
+            this.typeOrder.push({
+                type: typeName,
+                modRef: BS,
+                imgListRef: imgList,
+            });
+
+
+            console.log(`[BeautySelectorAddon] converted Mod ok.`, [addonName, mod.name, mod, modZip, typeName]);
+            this.logger.log(`[BeautySelectorAddon] converted Mod ok. [${mod.name}]`);
         } else if (isParamsType1(ad.params)) {
             const params: BeautySelectorAddonParamsType1 = ad.params;
             const type = params.type;

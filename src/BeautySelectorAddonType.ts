@@ -19,6 +19,7 @@ export interface ModImgEx extends ModImg {
 }
 
 export interface BeautySelectorAddonParamsType0 {
+    type?: string;
 }
 
 export interface BeautySelectorAddonParamsType1 {
