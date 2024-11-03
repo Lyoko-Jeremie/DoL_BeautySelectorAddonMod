@@ -262,6 +262,8 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
 
     protected registerModNameSet: Set<string> = new Set<string>();
 
+    type0ModNameList: string[] = [];
+
     async registerMod(addonName: string, mod: ModInfo, modZip: ModZipReader) {
         const ad = mod.bootJson.addonPlugin?.find(T => T.modName === 'BeautySelectorAddon' && T.addonName === 'BeautySelectorAddon');
         if (!ad) {
@@ -315,6 +317,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 imgListRef: imgList,
             });
 
+            this.type0ModNameList.push(modName);
 
             console.log(`[BeautySelectorAddon] converted Mod ok.`, [addonName, mod.name, mod, modZip, typeName]);
             this.logger.log(`[BeautySelectorAddon] converted Mod ok. [${mod.name}]`);
