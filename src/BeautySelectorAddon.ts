@@ -292,10 +292,12 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             const oImg = mod.imgs;
             const imgList = new Map<string, ModImgEx>(
                 oImg.map(T => {
+                    const imageGetter = new BeautySelectorAddonImgGetter(modName, modZip, T.path, this.logger);
+                    imageGetter.imgCache = T.getter.imgCache;
                     return [T.path, {
                         path: T.path,
                         realPath: T.path,
-                        getter: new BeautySelectorAddonImgGetter(modName, modZip, T.path, this.logger),
+                        getter: imageGetter,
                     }];
                 }),
             );
