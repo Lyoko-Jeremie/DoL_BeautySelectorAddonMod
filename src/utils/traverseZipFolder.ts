@@ -1,10 +1,19 @@
 // code from `Claude 3.5 Sonnet (New)` & `Github Copilot`
 import JSZip from 'jszip';
+import {isPlainObject, isNil, isString, isBoolean} from 'lodash';
 
 export interface ZipFile {
-    path: string;
+    pathInZip: string;
+    pathInSpecialFolder?: string;
     file?: JSZip.JSZipObject;
     content?: string | Awaited<ReturnType<JSZip.JSZipObject['async']>>;
+    isFile: boolean;
+    isFolder: boolean;
+    isInSpecialFolderPath: boolean;
+}
+
+export function isZipFileObj(A: any): A is ZipFile {
+    return isPlainObject(A) && isString(A.path) && isBoolean(A.isFile) && isBoolean(A.isFolder) && isBoolean(A.isInSpecialFolderPath);
 }
 
 export interface TraverseOptions {
@@ -23,6 +32,11 @@ export interface TraverseOptions {
      * @default 'string'
      */
     contentFormat?: JSZip.OutputType;
+    /**
+     * 是否跳过文件夹
+     * @default false
+     */
+    skipFolder?: boolean;
 }
 
 type FileTreeMap = Map<string, FileTreeMap | JSZip.JSZipObject>;
@@ -55,13 +69,13 @@ function buildFileTree(zip: JSZip): FileTreeMap {
 /**
  * 使用迭代方式异步遍历 JSZip 中指定路径的文件夹
  * @param zip JSZip 实例
- * @param folderPath 要遍历的文件夹路径
+ * @param specialFolderPath 指定的文件夹路径
  * @param options 遍历选项
  * @returns 文件列表，可包含文件内容
  */
 export async function traverseZipFolder(
     zip: JSZip,
-    folderPath: string,
+    specialFolderPath: string,
     options: TraverseOptions = {}
 ): Promise<ZipFile[]> {
     const {
@@ -70,9 +84,11 @@ export async function traverseZipFolder(
         contentFormat = 'string',
     } = options;
 
-    const normalizedPath = folderPath.endsWith('/') ? folderPath : folderPath + '/';
-    const folderStack: [string, FileTreeMap][] = [[normalizedPath, buildFileTree(zip)]];
+    const normalizedPath = specialFolderPath.endsWith('/') ? specialFolderPath : specialFolderPath + '/';
+    const folderStack: [string, FileTreeMap][] = [['', buildFileTree(zip)]];
     const result: ZipFile[] = [];
+
+    console.log('folderStack', folderStack);
 
     while (folderStack.length > 0) {
         const [currentPath, currentMap] = folderStack.pop()!;
@@ -84,10 +100,24 @@ export async function traverseZipFolder(
                 throw new Error('Invalid file tree structure');
             }
 
+
             const newPath = currentPath + name;
+            // const newPath = name;
+            // if name not start with currentPath, skip
+            if (!newPath.startsWith(currentPath)) {
+                continue;
+            }
+            // console.log('newPath', newPath);
             if (value.has('__file__')) {
                 const file = value.get('__file__') as JSZip.JSZipObject;
-                const zipFile: ZipFile = {path: newPath};
+                const isInSpecialFolderPath = newPath.startsWith(normalizedPath);
+                const zipFile: ZipFile = {
+                    pathInZip: newPath,
+                    pathInSpecialFolder: isInSpecialFolderPath ? newPath.slice(normalizedPath.length) : undefined,
+                    isFile: !file.dir,
+                    isFolder: file.dir,
+                    isInSpecialFolderPath: isInSpecialFolderPath,
+                };
 
                 if (getFileRef) {
                     zipFile.file = file;
@@ -110,12 +140,13 @@ export async function traverseZipFolder(
                 try {
                     zipFile.content = await zipFile.file.async(contentFormat);
                 } catch (error) {
-                    console.error(`Failed to read content of ${zipFile.path}:`, error);
+                    console.error(`Failed to read content of ${zipFile.pathInZip}:`, error);
                 }
             }
         }));
     }
 
+    // console.log('result', result);
     return result;
 }
 

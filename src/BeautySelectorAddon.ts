@@ -25,7 +25,7 @@ import {
     TypeOrderItem,
 } from "./BeautySelectorAddonType";
 import {BeautySelectorAddonInterface} from "./BeautySelectorAddonInterface";
-import {traverseZipFolder} from "./utils/traverseZipFolder";
+import {isZipFileObj, traverseZipFolder, ZipFile} from "./utils/traverseZipFolder";
 import {getRelativePath} from "./utils/getRelativePath";
 import type {
     ModSubUiAngularJsModeExportInterface
@@ -424,24 +424,26 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     });
                     this.table.set(type, BS);
                 } else if (isParamsType2BItem(L)) {
-                    let fileList = await this.cachedFileList.getCachedFileList(modName, modHash.toString(), type);
+                    let fileList: ZipFile[] | undefined = await this.cachedFileList.getCachedFileList(modName, modHash.toString(), type);
                     console.log('[BeautySelectorAddon] fileList from cache', [modName, modHash, type, fileList]);
                     if (!fileList) {
-                        fileList = (await traverseZipFolder(modZip.zip, L.imgDir)).map(T => T.path);
+                        fileList = (await traverseZipFolder(modZip.zip, L.imgDir));
                         console.log('[BeautySelectorAddon] fileList from traverseZipFolder', [modName, modHash, type, fileList]);
                         await this.cachedFileList.writeCachedFileList(modName, modHash.toString(), type, fileList);
                     }
+                    // console.log('fileList', fileList);
 
                     const imgList = new Map<string, ModImgEx>(
                         fileList.map(T => {
-                            const realPath = T;
-                            const path = getRelativePath(realPath, L.imgDir);
-                            return [path, {
-                                path: path,
-                                realPath: realPath,
-                                getter: new BeautySelectorAddonImgGetter(modName, modZip, realPath, this.logger),
+                            if (!T.isFile) {
+                                return undefined;
+                            }
+                            return [T.pathInSpecialFolder!, {
+                                path: T.pathInSpecialFolder!,
+                                realPath: T.pathInZip,
+                                getter: new BeautySelectorAddonImgGetter(modName, modZip, T.pathInZip, this.logger),
                             }];
-                        }),
+                        }).filter(T => !!T) as [string, ModImgEx][],
                     );
                     BS.typeImg.set(type, imgList);
                     BS.type.push(type);
@@ -759,7 +761,7 @@ export class CachedFileList {
 
     BeautySelectorAddon_dbNameCacheFileList: string = 'BeautySelectorAddon_dbNameCacheFileList';
 
-    async getCachedFileList(modName: string, modHashString: string, type: string) {
+    async getCachedFileList(modName: string, modHashString: string, type: string): Promise<ZipFile[] | undefined> {
         try {
             await this.iniCacheCustomStore();
         } catch (e) {
@@ -778,7 +780,7 @@ export class CachedFileList {
 
         try {
             const fileList = JSON5.parse(r.fileListJsonString);
-            if (isArray(fileList) && every(fileList, isString)) {
+            if (isArray(fileList) && every(fileList, isZipFileObj)) {
                 return fileList;
             }
             // invalid , remove it
@@ -792,7 +794,7 @@ export class CachedFileList {
         }
     }
 
-    async writeCachedFileList(modName: string, modHashString: string, type: string, fileList: string[]) {
+    async writeCachedFileList(modName: string, modHashString: string, type: string, fileList: ZipFile[]) {
         try {
             await this.iniCacheCustomStore();
         } catch (e) {
