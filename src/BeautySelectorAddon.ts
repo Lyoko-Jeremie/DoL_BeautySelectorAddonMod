@@ -305,7 +305,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             mod.imgs = [];
 
             const BS = {
-                name: addonName,
+                name: modName,
                 mod: mod,
                 modZip: modZip,
                 type: [typeName],
