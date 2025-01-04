@@ -4,13 +4,13 @@
     "cn": "美化选择器",
     "en": "Beautiful Selector"
   },
-  "version": "2.3.3",
+  "version": "2.6.0",
   "styleFileList": [
   ],
   "scriptFileList_earlyload": [
   ],
   "scriptFileList_inject_early": [
-    "dist/BeautySelectorAddon.js"
+    "dist/dist_BeautySelectorAddon.js"
   ],
   "scriptFileList_preload": [
   ],

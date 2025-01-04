@@ -20,7 +20,7 @@ const config = {
   entry: './src/init.ts',
   output: {
     path: path.resolve(__dirname, 'dist'),
-    filename: 'BeautySelectorAddon.js',
+    filename: 'dist_BeautySelectorAddon.js',
   },
   devtool: 'inline-source-map',
   target: 'web',
