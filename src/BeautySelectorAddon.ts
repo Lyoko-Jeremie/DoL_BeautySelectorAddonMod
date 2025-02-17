@@ -12,7 +12,7 @@ import type {
     ModInfo,
 } from "../../../dist-BeforeSC2/ModLoader";
 import type {ModZipReader} from "../../../dist-BeforeSC2/ModZipReader";
-import {every, isArray, isNil, isString} from 'lodash';
+import {clone, every, isArray, isNil, isString} from 'lodash';
 import {LRUCache} from 'lru-cache';
 import {extname} from "./extname";
 import JSON5 from 'json5';
@@ -259,6 +259,15 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
 
     // can re-order this list
     typeOrderUsed?: TypeOrderItem[];
+
+    getUsingTypeOrder(): undefined | { type: string, modName: string }[] {
+        return this.typeOrderUsed?.map(T => {
+            return {
+                type: T.type,
+                modName: T.modRef.name,
+            };
+        });
+    }
 
     protected registerModNameSet: Set<string> = new Set<string>();
 
