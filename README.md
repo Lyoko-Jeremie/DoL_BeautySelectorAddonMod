@@ -86,6 +86,7 @@ this addon has three run mode:
         // 模式2： 多套美化的模式
         // 如果需要使用这个模式，上面的type字段和imgFileList字段必须不存在
         "types": [
+          // 模式2 A
           {
             "type": "TypeA",
             "imgFileListFile": "typeA/imgFileListFileA.json",  // 一个文件，里面是一个数组，数组中的每个元素是一个图片文件的路径
@@ -93,6 +94,13 @@ this addon has three run mode:
           {
             "type": "TypeB",
             "imgFileListFile": "typeB/imgFileListFileB.json",
+          },
+          // 模式2 B
+          // 不使用.json列表文件，而直接指定图片所在目录并自动扫描目录下的所有文件
+          // 详见后面的说明
+          {
+            "type": "TypeC",
+            "imgDir": "typeC/path/to/dir",
           }
         ]
       }
