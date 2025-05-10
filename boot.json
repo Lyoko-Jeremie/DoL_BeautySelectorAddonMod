@@ -4,7 +4,7 @@
     "cn": "美化选择器",
     "en": "Beautiful Selector"
   },
-  "version": "2.7.0",
+  "version": "2.8.0",
   "styleFileList": [
   ],
   "scriptFileList_earlyload": [
@@ -32,11 +32,11 @@
   "dependenceInfo": [
     {
       "modName": "ModLoader",
-      "version": "^2.26.2"
+      "version": "^2.33.0"
     },
     {
       "modName": "ImageLoaderHook",
-      "version": "^2.18.0"
+      "version": "^2.22.0"
     },
     {
       "modName": "ModLoaderGui",
