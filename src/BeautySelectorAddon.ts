@@ -553,6 +553,48 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         return undefined;
     }
 
+    checkImageExist(src: string) {
+
+        if (!this.typeOrderUsed) {
+            if (this.errorCount < 10) {
+                ++this.errorCount;
+                console.error('[BeautySelectorAddon] imageGetter typeOrderUsed not set. maybe not init?');
+                this.logger.error('[BeautySelectorAddon] imageGetter typeOrderUsed not set. maybe not init?');
+                if (this.errorCount === 10) {
+                    console.error('[BeautySelectorAddon] imageGetter typeOrderUsed not set. maybe not init? this error will not show again');
+                    this.logger.error('[BeautySelectorAddon] imageGetter typeOrderUsed not set. maybe not init? this error will not show again');
+                }
+            }
+            return false;
+        }
+
+        if (this.typeOrderUsed.length === 0) {
+            // ignore
+            return false;
+        }
+
+        // always running on fallback mode
+        for (const type of this.typeOrderUsed) {
+            const n = type.imgListRef?.get(src);
+            if (n) {
+                try {
+                    // this may throw error
+                    const c = n.getter.invalid;
+                    if (!c) {
+                        return true;
+                    }
+                } catch (e: Error | any) {
+                    console.error('[BeautySelectorAddon] imageGetter error', [src, type, e]);
+                    this.logger.error(`[BeautySelectorAddon] imageGetter error: src[${src}] type[${type}] e[${e?.message ? e.message : e}]`);
+                    // skip, maybe exist but a error happened .
+                    return undefined;
+                }
+            }
+        }
+        // ignore ?
+        return false;
+    }
+
 
     init() {
         if (window.modImgLoaderHooker) {
@@ -563,6 +605,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 // those 2 function must have same result
                 imageLoader: this.imageLoader.bind(this),
                 imageGetter: this.imageGetter.bind(this),
+                checkImageExist: this.checkImageExist.bind(this),
             });
         } else {
             console.error('[BeautySelectorAddon] window.modImgLoaderHooker not found');
