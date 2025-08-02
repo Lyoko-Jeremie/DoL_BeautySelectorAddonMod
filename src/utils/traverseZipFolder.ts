@@ -1,12 +1,17 @@
 // code from `Claude 3.5 Sonnet (New)` & `Github Copilot`
 import JSZip from 'jszip';
+import {
+    JSZipObjectLikeReadOnlyInterface,
+    JSZipLikeReadOnlyInterface,
+    OutputType,
+} from '../../../../dist-BeforeSC2/JSZipLikeReadOnlyInterface';
 import {isPlainObject, isNil, isString, isBoolean} from 'lodash';
 
 export interface ZipFile {
     pathInZip: string;
     pathInSpecialFolder?: string;
-    file?: JSZip.JSZipObject;
-    content?: string | Awaited<ReturnType<JSZip.JSZipObject['async']>>;
+    file?: JSZipObjectLikeReadOnlyInterface;
+    content?: string | Awaited<ReturnType<JSZipObjectLikeReadOnlyInterface['async']>>;
     isFile: boolean;
     isFolder: boolean;
     isInSpecialFolderPath: boolean;
@@ -31,7 +36,7 @@ export interface TraverseOptions {
      * 文件内容读取格式
      * @default 'string'
      */
-    contentFormat?: JSZip.OutputType;
+    contentFormat?: OutputType;
     /**
      * 是否跳过文件夹
      * @default false
@@ -39,14 +44,14 @@ export interface TraverseOptions {
     skipFolder?: boolean;
 }
 
-type FileTreeMap = Map<string, FileTreeMap | JSZip.JSZipObject>;
+type FileTreeMap = Map<string, FileTreeMap | JSZipObjectLikeReadOnlyInterface>;
 
 /**
  * 广度优先遍历 JSZip 文件树，并生成文件树结构
  * @param zip
  * @return
  */
-function buildFileTree(zip: JSZip): FileTreeMap {
+function buildFileTree(zip: JSZipLikeReadOnlyInterface): FileTreeMap {
     const root: FileTreeMap = new Map();
 
     for (const [path, file] of Object.entries(zip.files)) {
@@ -74,7 +79,7 @@ function buildFileTree(zip: JSZip): FileTreeMap {
  * @returns 文件列表，可包含文件内容
  */
 export async function traverseZipFolder(
-    zip: JSZip,
+    zip: JSZipLikeReadOnlyInterface,
     specialFolderPath: string,
     options: TraverseOptions = {}
 ): Promise<ZipFile[]> {
@@ -109,7 +114,7 @@ export async function traverseZipFolder(
             }
             // console.log('newPath', newPath);
             if (value.has('__file__')) {
-                const file = value.get('__file__') as JSZip.JSZipObject;
+                const file = value.get('__file__') as JSZipObjectLikeReadOnlyInterface;
                 const isInSpecialFolderPath = newPath.startsWith(normalizedPath);
                 const zipFile: ZipFile = {
                     pathInZip: newPath,
