@@ -11,8 +11,6 @@ export interface ZipFile {
     pathInZip: string;
     pathInSpecialFolder?: string;
     file?: JSZipObjectLikeReadOnlyInterface;
-    content?: string | Awaited<ReturnType<JSZipObjectLikeReadOnlyInterface['async']>>;
-    imageData?: string; // base64 data URL for images
     isFile: boolean;
     isFolder: boolean;
     isInSpecialFolderPath: boolean;
@@ -30,25 +28,18 @@ export interface TraverseOptions {
      */
     getFileRef?: boolean;
     /**
-     * 是否读取文件内容
-     * @default false
-     */
-    readContent?: boolean;
-    /**
-     * 文件内容读取格式
-     * @default 'string'
-     */
-    contentFormat?: OutputType;
-    /**
      * 是否跳过文件夹
      * @default false
      */
     skipFolder?: boolean;
     /**
-     * 是否提取图片数据为base64
-     * @default false
+     * 图片处理回调函数 - 在发现图片时立即调用，避免内存积累
      */
-    extractImageData?: boolean;
+    onImageFound?: (imageInfo: {
+        pathInZip: string;
+        pathInSpecialFolder?: string;
+        file: JSZipObjectLikeReadOnlyInterface;
+    }) => Promise<void>;
 }
 
 /**
@@ -100,9 +91,7 @@ export async function traverseZipFolder(
 ): Promise<ZipFile[]> {
     const {
         getFileRef = false,
-        readContent = false,
-        contentFormat = 'string',
-        extractImageData = false,
+        onImageFound,
     } = options;
 
     const normalizedPath = specialFolderPath.endsWith('/') ? specialFolderPath : specialFolderPath + '/';
@@ -147,40 +136,20 @@ export async function traverseZipFolder(
                     zipFile.file = file;
                 }
 
-                if (readContent && !file.dir) {
-                    result.push(zipFile);
-                } else {
-                    result.push(zipFile);
+                // Process images immediately if callback is provided
+                if (isImage && onImageFound && isInSpecialFolderPath) {
+                    await onImageFound({
+                        pathInZip: newPath,
+                        pathInSpecialFolder: zipFile.pathInSpecialFolder,
+                        file: file
+                    });
                 }
+
+                result.push(zipFile);
             } else {
                 folderStack.push([newPath + '/', value]);
             }
         }
-    }
-
-    // Process content and image data
-    if (readContent || extractImageData) {
-        await Promise.all(result.map(async (zipFile) => {
-            if (zipFile.file && !zipFile.file.dir) {
-                try {
-                    if (readContent) {
-                        zipFile.content = await zipFile.file.async(contentFormat);
-                    }
-                    if (extractImageData && zipFile.isImage) {
-                        const base64Data = await zipFile.file.async('base64');
-                        // Simple data URL wrapper
-                        const ext = zipFile.pathInZip.split('.').pop()?.toLowerCase();
-                        let mimeType = 'image/png';
-                        if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
-                        else if (ext === 'gif') mimeType = 'image/gif';
-                        else if (ext === 'webp') mimeType = 'image/webp';
-                        zipFile.imageData = `data:${mimeType};base64,${base64Data}`;
-                    }
-                } catch (error) {
-                    console.error(`Failed to read content of ${zipFile.pathInZip}:`, error);
-                }
-            }
-        }));
     }
 
     // console.log('result', result);
@@ -212,10 +181,12 @@ async function example() {
         const filesBasic = await traverseZipFolder(zip, 'folder1');
         console.log('Basic traversal:', filesBasic);
 
-        // 带内容遍历
-        const filesWithContent = await traverseZipFolder(zip, 'folder1', {
-            readContent: true,
-            contentFormat: 'string'
+        // 带图片处理回调的遍历
+        const filesWithImageProcessing = await traverseZipFolder(zip, 'folder1', {
+            onImageFound: async (imageInfo) => {
+                console.log('Processing image:', imageInfo.pathInZip);
+                // 在这里可以直接处理图片，例如存储到数据库
+            }
         });
 
     } catch (error) {
