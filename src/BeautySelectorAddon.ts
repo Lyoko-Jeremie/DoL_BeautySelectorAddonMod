@@ -25,7 +25,7 @@ import {
     TypeOrderItem,
 } from "./BeautySelectorAddonType";
 import {BeautySelectorAddonInterface} from "./BeautySelectorAddonInterface";
-import {isZipFileObj, traverseZipFolder, ZipFile} from "./utils/traverseZipFolder";
+import {isZipFileObj, traverseZipFolder, ZipFile, isImageFile} from "./utils/traverseZipFolder";
 import {getRelativePath} from "./utils/getRelativePath";
 import type {
     ModSubUiAngularJsModeExportInterface
@@ -67,6 +67,53 @@ export function imgWrapBase64Url(fileName: string, base64: string) {
 }
 
 export class BeautySelectorAddonImgGetter implements IModImgGetter {
+    constructor(
+        public modName: string,
+        public modHashString: string,
+        public imgPath: string,
+        public imageStore: ModImageStore,
+        public logger: LogWrapper,
+    ) {
+    }
+
+    imgCache?: string | undefined;
+    invalid: boolean = false;
+
+    async forceCache() {
+        // No-op for IndexedDB version since data is already cached
+        this.imgCache = await this.getBase64Image();
+    }
+
+    async getBase64Image() {
+        arguments.length > 0 && console.error('BeautySelectorAddonImgGetterIndexedDB getBase64Image() cannot have arguments.', arguments);
+        if (this.invalid) {
+            return undefined;
+        }
+        
+        if (this.imgCache) {
+            return this.imgCache;
+        }
+
+        try {
+            const imageData = await this.imageStore.getImage(this.modName, this.modHashString, this.imgPath);
+            if (imageData) {
+                this.imgCache = imageData;
+                return imageData;
+            } else {
+                this.invalid = true;
+                console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() image not found: ${this.imgPath} in ${this.modName}`);
+                this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() image not found: ${this.imgPath} in ${this.modName}`);
+                return undefined;
+            }
+        } catch (error) {
+            this.invalid = true;
+            console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() error: ${this.imgPath} in ${this.modName}`, error);
+            this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() error: ${this.imgPath} in ${this.modName}`);
+            return undefined;
+        }
+    }
+
+}
     constructor(
         public modName: string,
         public zip: ModZipReader,
@@ -115,6 +162,55 @@ export class BeautySelectorAddonImgGetter implements IModImgGetter {
         this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
         return undefined;
         // return Promise.reject(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
+    }
+
+}
+
+export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
+    constructor(
+        public modName: string,
+        public modHashString: string,
+        public imgPath: string,
+        public imageStore: ModImageStore,
+        public logger: LogWrapper,
+    ) {
+    }
+
+    imgCache?: string | undefined;
+    invalid: boolean = false;
+
+    async forceCache() {
+        // No-op for IndexedDB version since data is already cached
+        this.imgCache = await this.getBase64Image();
+    }
+
+    async getBase64Image() {
+        arguments.length > 0 && console.error('BeautySelectorAddonImgGetterIndexedDB getBase64Image() cannot have arguments.', arguments);
+        if (this.invalid) {
+            return undefined;
+        }
+        
+        if (this.imgCache) {
+            return this.imgCache;
+        }
+
+        try {
+            const imageData = await this.imageStore.getImage(this.modName, this.modHashString, this.imgPath);
+            if (imageData) {
+                this.imgCache = imageData;
+                return imageData;
+            } else {
+                this.invalid = true;
+                console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() image not found: ${this.imgPath} in ${this.modName}`);
+                this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() image not found: ${this.imgPath} in ${this.modName}`);
+                return undefined;
+            }
+        } catch (error) {
+            this.invalid = true;
+            console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() error: ${this.imgPath} in ${this.modName}`, error);
+            this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() error: ${this.imgPath} in ${this.modName}`);
+            return undefined;
+        }
     }
 
 }
@@ -209,6 +305,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         );
         this.IdbKeyValRef = this.gModUtils.getIdbKeyValRef();
         this.cachedFileList = new CachedFileList(this.gModUtils);
+        this.imageStore = new ModImageStore(this.gModUtils, this.logger);
 
         const theName = this.gModUtils.getNowRunningModName();
         if (!theName) {
@@ -231,6 +328,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
     }
 
     protected cachedFileList: CachedFileList;
+    protected imageStore: ModImageStore;
     protected typeOrderSubUi?: TypeOrderSubUi;
 
     async onModLoaderLoadEnd() {
@@ -243,7 +341,9 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         await this.typeOrderSubUi?.init();
 
         await this.cachedFileList.removeNotExistMod(this.registerModNameSet);
+        await this.imageStore.removeNotExistModImages(this.registerModNameSet);
         this.cachedFileList.close();
+        this.imageStore.close();
 
         console.log('[BeautySelectorAddon] all ok');
         this.logger.log('[BeautySelectorAddon] all ok');
@@ -284,6 +384,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         const modHash = modZip.modZipReaderHash;
         this.registerModNameSet.add(modName);
         await this.cachedFileList.removeChangedModFileByHash(modName, modHash.toString());
+        await this.imageStore.removeChangedModImages(modName, modHash.toString());
 
         if (isParamsType0(ad.params)) {
             // this is converted from ImageLoaderHook 2 BeautySelectorAddon
@@ -433,27 +534,47 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     });
                     this.table.set(type, BS);
                 } else if (isParamsType2BItem(L)) {
-                    let fileList: ZipFile[] | undefined = await this.cachedFileList.getCachedFileList(modName, modHash.toString(), type);
-                    console.log('[BeautySelectorAddon] fileList from cache', [modName, modHash, type, fileList]);
-                    if (!fileList) {
-                        fileList = (await traverseZipFolder(modZip.zip, L.imgDir));
-                        console.log('[BeautySelectorAddon] fileList from traverseZipFolder', [modName, modHash, type, fileList]);
-                        await this.cachedFileList.writeCachedFileList(modName, modHash.toString(), type, fileList);
-                    }
-                    // console.log('fileList', fileList);
-
-                    const imgList = new Map<string, ModImgEx>(
-                        fileList.map(T => {
-                            if (!T.isFile) {
-                                return undefined;
-                            }
-                            return [T.pathInSpecialFolder!, {
-                                path: T.pathInSpecialFolder!,
+                    // Check if images are already stored in IndexedDB
+                    const hasStoredImages = await this.imageStore.hasStoredImages(modName, modHash.toString(), type);
+                    
+                    if (!hasStoredImages) {
+                        // Extract images with data from the ZIP
+                        const fileList = await traverseZipFolder(modZip.zip, L.imgDir, { extractImageData: true });
+                        console.log('[BeautySelectorAddon] fileList from traverseZipFolder with images', [modName, modHash, type, fileList.length]);
+                        
+                        // Filter and prepare image data for storage
+                        const imageFiles = fileList
+                            .filter(T => T.isFile && T.isImage && T.imageData)
+                            .map(T => ({
+                                imagePath: T.pathInSpecialFolder!,
                                 realPath: T.pathInZip,
-                                getter: new BeautySelectorAddonImgGetter(modName, modZip, T.pathInZip, this.logger),
-                            }];
-                        }).filter(T => !!T) as [string, ModImgEx][],
-                    );
+                                imageData: T.imageData!,
+                            }));
+                            
+                        // Store images in IndexedDB
+                        if (imageFiles.length > 0) {
+                            await this.imageStore.storeModImages(modName, modHash.toString(), type, imageFiles);
+                            console.log('[BeautySelectorAddon] stored images in IndexedDB', [modName, type, imageFiles.length]);
+                        }
+                        
+                        // Also cache file list for compatibility
+                        await this.cachedFileList.writeCachedFileList(modName, modHash.toString(), type, fileList.filter(T => T.isFile));
+                    }
+                    
+                    // Get image paths from IndexedDB
+                    const imagePaths = await this.imageStore.getImagePaths(modName, modHash.toString(), type);
+                    
+                    const imgList = new Map<string, ModImgEx>();
+                    if (imagePaths) {
+                        for (const imagePath of imagePaths) {
+                            imgList.set(imagePath, {
+                                path: imagePath,
+                                realPath: imagePath, // Not needed for IndexedDB version
+                                getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), imagePath, this.imageStore, this.logger),
+                            });
+                        }
+                    }
+                    
                     BS.typeImg.set(type, imgList);
                     BS.type.push(type);
 
@@ -769,6 +890,48 @@ export interface CachedFileListDbSchema extends DBSchema {
     },
 }
 
+export interface ModImageStoreDbSchema extends DBSchema {
+    imageStore: {
+        value: {
+            modName: string,
+            modHashString: string,
+            type: string,
+            imagePath: string,
+            realPath: string,
+            imageData: string,
+            imageKey: string, // `${modName}_${modHashString}_${imagePath}`
+        },
+        key: string,
+        indexes: {
+            'by-modName': string,
+            'by-modHashString': string,
+            'by-type': string,
+            'by-imagePath': string,
+            'by-modName-modHashString': [string, string],
+            'by-modName-type': [string, string],
+            'by-modName-modHashString-type': [string, string, string],
+        },
+    },
+    imageMetadata: {
+        value: {
+            modName: string,
+            modHashString: string,
+            type: string,
+            imagePaths: string[],
+            metaKey: string, // `${modName}_${modHashString}_${type}`
+        },
+        key: string,
+        indexes: {
+            'by-modName': string,
+            'by-modHashString': string,
+            'by-type': string,
+            'by-modName-modHashString': [string, string],
+            'by-modName-type': [string, string],
+            'by-modName-modHashString-type': [string, string, string],
+        },
+    },
+}
+
 export class CachedFileList {
 
     constructor(
@@ -925,6 +1088,259 @@ export class CachedFileList {
             }
         } finally {
             await tans.done;
+        }
+    }
+
+    close() {
+        this.dbRef?.close();
+        this.isInit = false;
+        this.isClose = true;
+        this.dbRef = undefined;
+    }
+
+}
+
+export class ModImageStore {
+
+    constructor(
+        public gModUtils: ModUtils,
+        public logger: LogWrapper,
+    ) {
+    }
+
+    protected dbRef?: IDBPDatabase<ModImageStoreDbSchema>;
+
+    protected isInit = false;
+    protected isClose = false;
+
+    protected async iniImageStore() {
+        if (this.isClose) {
+            console.error('[BeautySelectorAddon] iniImageStore: already close');
+            throw new Error('[BeautySelectorAddon] iniImageStore: already close');
+        }
+        if (!this.isInit) {
+            const loaderKeyConfig = this.gModUtils.getModLoader().getLoaderKeyConfig();
+            this.BeautySelectorAddon_dbNameImageStore = loaderKeyConfig.getLoaderKey(this.BeautySelectorAddon_dbNameImageStore, this.BeautySelectorAddon_dbNameImageStore);
+
+            this.dbRef = await idb_openDB<ModImageStoreDbSchema>(
+                this.BeautySelectorAddon_dbNameImageStore,
+                1,
+                {
+                    upgrade: (database: IDBPDatabase<ModImageStoreDbSchema>, oldVersion: number, newVersion: number | null, transaction: IDBPTransaction<ModImageStoreDbSchema, StoreNames<ModImageStoreDbSchema>[], "versionchange">, event: IDBVersionChangeEvent) => {
+                        // Create imageStore
+                        const imageStorage = database.createObjectStore('imageStore', {
+                            keyPath: 'imageKey',
+                        });
+                        imageStorage.createIndex('by-modName', 'modName');
+                        imageStorage.createIndex('by-modHashString', 'modHashString');
+                        imageStorage.createIndex('by-type', 'type');
+                        imageStorage.createIndex('by-imagePath', 'imagePath');
+                        imageStorage.createIndex('by-modName-modHashString', ['modName', 'modHashString']);
+                        imageStorage.createIndex('by-modName-type', ['modName', 'type']);
+                        imageStorage.createIndex('by-modName-modHashString-type', ['modName', 'modHashString', 'type']);
+
+                        // Create imageMetadata 
+                        const metadataStorage = database.createObjectStore('imageMetadata', {
+                            keyPath: 'metaKey',
+                        });
+                        metadataStorage.createIndex('by-modName', 'modName');
+                        metadataStorage.createIndex('by-modHashString', 'modHashString');
+                        metadataStorage.createIndex('by-type', 'type');
+                        metadataStorage.createIndex('by-modName-modHashString', ['modName', 'modHashString']);
+                        metadataStorage.createIndex('by-modName-type', ['modName', 'type']);
+                        metadataStorage.createIndex('by-modName-modHashString-type', ['modName', 'modHashString', 'type']);
+                    },
+                },
+            );
+        }
+        this.isInit = true;
+    }
+
+    BeautySelectorAddon_dbNameImageStore: string = 'BeautySelectorAddon_dbNameImageStore';
+
+    /**
+     * Check if images for a mod are already stored
+     */
+    async hasStoredImages(modName: string, modHashString: string, type: string): Promise<boolean> {
+        try {
+            await this.iniImageStore();
+        } catch (e) {
+            console.error('[BeautySelectorAddon] hasStoredImages error', [e]);
+            throw e;
+        }
+        const metaKey = `${modName}_${modHashString}_${type}`;
+        const metadata = await this.dbRef!.get('imageMetadata', metaKey);
+        return !!metadata;
+    }
+
+    /**
+     * Store images and metadata for a mod type
+     */
+    async storeModImages(
+        modName: string, 
+        modHashString: string, 
+        type: string, 
+        imageFiles: { imagePath: string, realPath: string, imageData: string }[]
+    ): Promise<void> {
+        try {
+            await this.iniImageStore();
+        } catch (e) {
+            console.error('[BeautySelectorAddon] storeModImages error', [e]);
+            throw e;
+        }
+
+        const metaKey = `${modName}_${modHashString}_${type}`;
+        
+        // Check if already exists
+        const existingMeta = await this.dbRef!.get('imageMetadata', metaKey);
+        if (existingMeta) {
+            console.log('[BeautySelectorAddon] Images already stored for', [modName, type]);
+            return;
+        }
+
+        const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
+        
+        try {
+            const imageStore = transaction.objectStore('imageStore');
+            const metadataStore = transaction.objectStore('imageMetadata');
+
+            // Store individual images
+            const imagePaths: string[] = [];
+            for (const imageFile of imageFiles) {
+                const imageKey = `${modName}_${modHashString}_${imageFile.imagePath}`;
+                const imageRecord = {
+                    modName,
+                    modHashString,
+                    type,
+                    imagePath: imageFile.imagePath,
+                    realPath: imageFile.realPath,
+                    imageData: imageFile.imageData,
+                    imageKey,
+                };
+                await imageStore.put(imageRecord);
+                imagePaths.push(imageFile.imagePath);
+            }
+
+            // Store metadata
+            const metadataRecord = {
+                modName,
+                modHashString,
+                type,
+                imagePaths,
+                metaKey,
+            };
+            await metadataStore.put(metadataRecord);
+
+            console.log('[BeautySelectorAddon] Stored images for mod', [modName, type, imagePaths.length]);
+        } finally {
+            await transaction.done;
+        }
+    }
+
+    /**
+     * Get image data by path
+     */
+    async getImage(modName: string, modHashString: string, imagePath: string): Promise<string | undefined> {
+        try {
+            await this.iniImageStore();
+        } catch (e) {
+            console.error('[BeautySelectorAddon] getImage error', [e]);
+            throw e;
+        }
+
+        const imageKey = `${modName}_${modHashString}_${imagePath}`;
+        const imageRecord = await this.dbRef!.get('imageStore', imageKey);
+        return imageRecord?.imageData;
+    }
+
+    /**
+     * Get image paths for a mod type
+     */
+    async getImagePaths(modName: string, modHashString: string, type: string): Promise<string[] | undefined> {
+        try {
+            await this.iniImageStore();
+        } catch (e) {
+            console.error('[BeautySelectorAddon] getImagePaths error', [e]);
+            throw e;
+        }
+
+        const metaKey = `${modName}_${modHashString}_${type}`;
+        const metadata = await this.dbRef!.get('imageMetadata', metaKey);
+        return metadata?.imagePaths;
+    }
+
+    /**
+     * Remove all images for a specific mod hash (when mod changes)
+     */
+    async removeChangedModImages(modName: string, modHashString: string): Promise<void> {
+        try {
+            await this.iniImageStore();
+        } catch (e) {
+            console.error('[BeautySelectorAddon] removeChangedModImages error', [e]);
+            throw e;
+        }
+
+        const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
+        
+        try {
+            const imageStore = transaction.objectStore('imageStore');
+            const metadataStore = transaction.objectStore('imageMetadata');
+
+            // Remove images with same mod name but different hash
+            const images = await imageStore.index('by-modName').getAll(modName);
+            for (const image of images) {
+                if (image.modHashString !== modHashString) {
+                    console.log('[BeautySelectorAddon] removeChangedModImages image', [image.imageKey]);
+                    await imageStore.delete(image.imageKey);
+                }
+            }
+
+            // Remove metadata with same mod name but different hash
+            const metadata = await metadataStore.index('by-modName').getAll(modName);
+            for (const meta of metadata) {
+                if (meta.modHashString !== modHashString) {
+                    console.log('[BeautySelectorAddon] removeChangedModImages metadata', [meta.metaKey]);
+                    await metadataStore.delete(meta.metaKey);
+                }
+            }
+        } finally {
+            await transaction.done;
+        }
+    }
+
+    /**
+     * Remove images for mods that no longer exist
+     */
+    async removeNotExistModImages(modNameSet: Set<string>): Promise<void> {
+        try {
+            await this.iniImageStore();
+        } catch (e) {
+            console.error('[BeautySelectorAddon] removeNotExistModImages error', [e]);
+            throw e;
+        }
+
+        const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
+        
+        try {
+            // Remove images for non-existent mods
+            for await (const cursor of transaction.objectStore('imageStore')) {
+                const image = cursor.value;
+                if (!modNameSet.has(image.modName)) {
+                    console.log('[BeautySelectorAddon] removeNotExistModImages image', [image.imageKey]);
+                    await cursor.delete();
+                }
+            }
+
+            // Remove metadata for non-existent mods  
+            for await (const cursor of transaction.objectStore('imageMetadata')) {
+                const meta = cursor.value;
+                if (!modNameSet.has(meta.modName)) {
+                    console.log('[BeautySelectorAddon] removeNotExistModImages metadata', [meta.metaKey]);
+                    await cursor.delete();
+                }
+            }
+        } finally {
+            await transaction.done;
         }
     }
 

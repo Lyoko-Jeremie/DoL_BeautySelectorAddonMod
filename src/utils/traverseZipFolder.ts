@@ -12,13 +12,15 @@ export interface ZipFile {
     pathInSpecialFolder?: string;
     file?: JSZipObjectLikeReadOnlyInterface;
     content?: string | Awaited<ReturnType<JSZipObjectLikeReadOnlyInterface['async']>>;
+    imageData?: string; // base64 data URL for images
     isFile: boolean;
     isFolder: boolean;
     isInSpecialFolderPath: boolean;
+    isImage?: boolean; // flag to indicate if this is an image file
 }
 
 export function isZipFileObj(A: any): A is ZipFile {
-    return isPlainObject(A) && isString(A.path) && isBoolean(A.isFile) && isBoolean(A.isFolder) && isBoolean(A.isInSpecialFolderPath);
+    return isPlainObject(A) && isString(A.pathInZip) && isBoolean(A.isFile) && isBoolean(A.isFolder) && isBoolean(A.isInSpecialFolderPath);
 }
 
 export interface TraverseOptions {
@@ -42,6 +44,19 @@ export interface TraverseOptions {
      * @default false
      */
     skipFolder?: boolean;
+    /**
+     * 是否提取图片数据为base64
+     * @default false
+     */
+    extractImageData?: boolean;
+}
+
+/**
+ * Helper function to check if a file is an image based on extension
+ */
+export function isImageFile(path: string): boolean {
+    const ext = path.split('.').pop()?.toLowerCase();
+    return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext || '');
 }
 
 type FileTreeMap = Map<string, FileTreeMap | JSZipObjectLikeReadOnlyInterface>;
@@ -87,6 +102,7 @@ export async function traverseZipFolder(
         getFileRef = false,
         readContent = false,
         contentFormat = 'string',
+        extractImageData = false,
     } = options;
 
     const normalizedPath = specialFolderPath.endsWith('/') ? specialFolderPath : specialFolderPath + '/';
@@ -116,12 +132,15 @@ export async function traverseZipFolder(
             if (value.has('__file__')) {
                 const file = value.get('__file__') as JSZipObjectLikeReadOnlyInterface;
                 const isInSpecialFolderPath = newPath.startsWith(normalizedPath);
+                const isImage = !file.dir && isImageFile(newPath);
+                
                 const zipFile: ZipFile = {
                     pathInZip: newPath,
                     pathInSpecialFolder: isInSpecialFolderPath ? newPath.slice(normalizedPath.length) : undefined,
                     isFile: !file.dir,
                     isFolder: file.dir,
                     isInSpecialFolderPath: isInSpecialFolderPath,
+                    isImage: isImage,
                 };
 
                 if (getFileRef) {
@@ -139,11 +158,24 @@ export async function traverseZipFolder(
         }
     }
 
-    if (readContent) {
+    // Process content and image data
+    if (readContent || extractImageData) {
         await Promise.all(result.map(async (zipFile) => {
             if (zipFile.file && !zipFile.file.dir) {
                 try {
-                    zipFile.content = await zipFile.file.async(contentFormat);
+                    if (readContent) {
+                        zipFile.content = await zipFile.file.async(contentFormat);
+                    }
+                    if (extractImageData && zipFile.isImage) {
+                        const base64Data = await zipFile.file.async('base64');
+                        // Simple data URL wrapper
+                        const ext = zipFile.pathInZip.split('.').pop()?.toLowerCase();
+                        let mimeType = 'image/png';
+                        if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+                        else if (ext === 'gif') mimeType = 'image/gif';
+                        else if (ext === 'webp') mimeType = 'image/webp';
+                        zipFile.imageData = `data:${mimeType};base64,${base64Data}`;
+                    }
                 } catch (error) {
                     console.error(`Failed to read content of ${zipFile.pathInZip}:`, error);
                 }
