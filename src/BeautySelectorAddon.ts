@@ -441,15 +441,59 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 this.logger.warn(`[BeautySelectorAddon] registerMod: type[${type}] already exist in [${this.table.get(type)!.name}]. this type will not be add.`);
                 return;
             }
-            const imgList = new Map<string, ModImgEx>(
-                params.imgFileList.map(T => {
-                    return [T, {
-                        path: T,
-                        realPath: T,
-                        getter: new BeautySelectorAddonImgGetter(modName, modZip, T, this.logger),
-                    }];
-                }),
-            );
+            
+            // Check if images are already stored in IndexedDB
+            const hasStoredImages = await this.imageStore.hasStoredImages(modName, modHash.toString(), type);
+            
+            if (!hasStoredImages) {
+                // Extract images from the specified file paths
+                const imageFiles: { imagePath: string, realPath: string, imageData: string }[] = [];
+                
+                for (const imagePath of params.imgFileList) {
+                    if (isImageFile(imagePath)) {
+                        const imageFile = modZip.zip.file(imagePath);
+                        if (imageFile) {
+                            try {
+                                const base64Data = await imageFile.async('base64');
+                                const ext = imagePath.split('.').pop()?.toLowerCase();
+                                let mimeType = 'image/png';
+                                if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+                                else if (ext === 'gif') mimeType = 'image/gif';
+                                else if (ext === 'webp') mimeType = 'image/webp';
+                                
+                                imageFiles.push({
+                                    imagePath: imagePath,
+                                    realPath: imagePath,
+                                    imageData: `data:${mimeType};base64,${base64Data}`,
+                                });
+                            } catch (error) {
+                                console.warn(`[BeautySelectorAddon] Failed to read image: ${imagePath}`, error);
+                            }
+                        }
+                    }
+                }
+                
+                // Store images in IndexedDB
+                if (imageFiles.length > 0) {
+                    await this.imageStore.storeModImages(modName, modHash.toString(), type, imageFiles);
+                    console.log('[BeautySelectorAddon] stored images in IndexedDB (Type1)', [modName, type, imageFiles.length]);
+                }
+            }
+            
+            // Get image paths from IndexedDB
+            const imagePaths = await this.imageStore.getImagePaths(modName, modHash.toString(), type);
+            
+            const imgList = new Map<string, ModImgEx>();
+            if (imagePaths) {
+                for (const imagePath of imagePaths) {
+                    imgList.set(imagePath, {
+                        path: imagePath,
+                        realPath: imagePath, // Not needed for IndexedDB version
+                        getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), imagePath, this.imageStore, this.logger),
+                    });
+                }
+            }
+            
             const BS = {
                 name: addonName,
                 mod: mod,
@@ -493,37 +537,80 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     continue;
                 }
                 if (isParamsType2AItem(L)) {
-                    const imgFileListFile = await modZip.zip.file(L.imgFileListFile)?.async('string');
-                    if (!imgFileListFile) {
-                        console.error(`[BeautySelectorAddon] registerMod: imgFileListFile not found.`, [addonName, mod.name, mod, modZip, type, L]);
-                        this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile[${L.imgFileListFile}] not found. this type will not be add.`);
-                        continue;
-                    }
-                    let imgFileList: string[] = [];
-                    try {
-                        imgFileList = JSON5.parse(imgFileListFile);
-                        if (!(isArray(imgFileList) && every(imgFileList, isString))) {
-                            console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a string array.`, [addonName, mod.name, mod, modZip, type, L]);
-                            this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a string array. this type will not be add.`);
+                    // Check if images are already stored in IndexedDB
+                    const hasStoredImages = await this.imageStore.hasStoredImages(modName, modHash.toString(), type);
+                    
+                    if (!hasStoredImages) {
+                        const imgFileListFile = await modZip.zip.file(L.imgFileListFile)?.async('string');
+                        if (!imgFileListFile) {
+                            console.error(`[BeautySelectorAddon] registerMod: imgFileListFile not found.`, [addonName, mod.name, mod, modZip, type, L]);
+                            this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile[${L.imgFileListFile}] not found. this type will not be add.`);
                             continue;
                         }
-                    } catch (e: Error | any) {
-                        console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a valid json.`, [addonName, mod.name, mod, modZip, type, L]);
-                        this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a valid json. this type will not be add.`);
-                        continue;
+                        let imgFileList: string[] = [];
+                        try {
+                            imgFileList = JSON5.parse(imgFileListFile);
+                            if (!(isArray(imgFileList) && every(imgFileList, isString))) {
+                                console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a string array.`, [addonName, mod.name, mod, modZip, type, L]);
+                                this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a string array. this type will not be add.`);
+                                continue;
+                            }
+                        } catch (e: Error | any) {
+                            console.error(`[BeautySelectorAddon] registerMod: imgFileListFile is not a valid json.`, [addonName, mod.name, mod, modZip, type, L]);
+                            this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a valid json. this type will not be add.`);
+                            continue;
+                        }
+                        
+                        // calc real path in zip and extract image data
+                        const dirP = getDirFromPath(L.imgFileListFile);
+                        const imageFiles: { imagePath: string, realPath: string, imageData: string }[] = [];
+                        
+                        for (const imagePath of imgFileList) {
+                            const realPath = dirP + imagePath;
+                            if (isImageFile(realPath)) {
+                                const imageFile = modZip.zip.file(realPath);
+                                if (imageFile) {
+                                    try {
+                                        const base64Data = await imageFile.async('base64');
+                                        const ext = realPath.split('.').pop()?.toLowerCase();
+                                        let mimeType = 'image/png';
+                                        if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+                                        else if (ext === 'gif') mimeType = 'image/gif';
+                                        else if (ext === 'webp') mimeType = 'image/webp';
+                                        
+                                        imageFiles.push({
+                                            imagePath: imagePath,
+                                            realPath: realPath,
+                                            imageData: `data:${mimeType};base64,${base64Data}`,
+                                        });
+                                    } catch (error) {
+                                        console.warn(`[BeautySelectorAddon] Failed to read image: ${realPath}`, error);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Store images in IndexedDB
+                        if (imageFiles.length > 0) {
+                            await this.imageStore.storeModImages(modName, modHash.toString(), type, imageFiles);
+                            console.log('[BeautySelectorAddon] stored images in IndexedDB (Type2A)', [modName, type, imageFiles.length]);
+                        }
                     }
-                    // calc real path in zip
-                    const dirP = getDirFromPath(L.imgFileListFile);
-                    const imgList = new Map<string, ModImgEx>(
-                        imgFileList.map(T => {
-                            const realPath = dirP + T;
-                            return [T, {
-                                path: T,
-                                realPath: realPath,
-                                getter: new BeautySelectorAddonImgGetter(modName, modZip, realPath, this.logger),
-                            }];
-                        }),
-                    );
+                    
+                    // Get image paths from IndexedDB
+                    const imagePaths = await this.imageStore.getImagePaths(modName, modHash.toString(), type);
+                    
+                    const imgList = new Map<string, ModImgEx>();
+                    if (imagePaths) {
+                        for (const imagePath of imagePaths) {
+                            imgList.set(imagePath, {
+                                path: imagePath,
+                                realPath: imagePath, // Not needed for IndexedDB version
+                                getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), imagePath, this.imageStore, this.logger),
+                            });
+                        }
+                    }
+                    
                     BS.typeImg.set(type, imgList);
                     BS.type.push(type);
 
