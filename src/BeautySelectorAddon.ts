@@ -66,106 +66,6 @@ export function imgWrapBase64Url(fileName: string, base64: string) {
     return `data:image/${ext};base64,${base64}`;
 }
 
-export class BeautySelectorAddonImgGetter implements IModImgGetter {
-    constructor(
-        public modName: string,
-        public modHashString: string,
-        public imgPath: string,
-        public imageStore: ModImageStore,
-        public logger: LogWrapper,
-    ) {
-    }
-
-    imgCache?: string | undefined;
-    invalid: boolean = false;
-
-    async forceCache() {
-        // No-op for IndexedDB version since data is already cached
-        this.imgCache = await this.getBase64Image();
-    }
-
-    async getBase64Image() {
-        arguments.length > 0 && console.error('BeautySelectorAddonImgGetterIndexedDB getBase64Image() cannot have arguments.', arguments);
-        if (this.invalid) {
-            return undefined;
-        }
-        
-        if (this.imgCache) {
-            return this.imgCache;
-        }
-
-        try {
-            const imageData = await this.imageStore.getImage(this.modName, this.modHashString, this.imgPath);
-            if (imageData) {
-                this.imgCache = imageData;
-                return imageData;
-            } else {
-                this.invalid = true;
-                console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() image not found: ${this.imgPath} in ${this.modName}`);
-                this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() image not found: ${this.imgPath} in ${this.modName}`);
-                return undefined;
-            }
-        } catch (error) {
-            this.invalid = true;
-            console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() error: ${this.imgPath} in ${this.modName}`, error);
-            this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() error: ${this.imgPath} in ${this.modName}`);
-            return undefined;
-        }
-    }
-
-}
-    constructor(
-        public modName: string,
-        public zip: ModZipReader,
-        public imgPath: string,
-        public logger: LogWrapper,
-    ) {
-    }
-
-    imgCache?: string | undefined;
-    invalid: boolean = false;
-
-    async forceCache() {
-        this.imgCache = await this.getBase64Image();
-    }
-
-    async getBase64Image() {
-        arguments.length > 0 && console.error('BeautySelectorAddonImgGetter getBase64Image() cannot have arguments.', arguments);
-        if (this.invalid) {
-            return undefined;
-        }
-        // add mod prefix to cache path
-        const key = `[${this.modName}]_${this.imgPath}`;
-        if (this.imgCache) {
-            return this.imgCache;
-        }
-        const cache = BeautySelectorAddonImgLruCache.get(key);
-        if (cache) {
-            return cache.invalid ? undefined : cache.imageBase64;
-        }
-        const imgFile = this.zip.zip.file(this.imgPath);
-        if (imgFile) {
-            const data = await imgFile.async('base64');
-            const imgCache = imgWrapBase64Url(this.imgPath, data);
-            BeautySelectorAddonImgLruCache.set(key, {
-                imageBase64: imgCache,
-                invalid: false,
-            });
-            return imgCache;
-        }
-        this.invalid = true;
-        BeautySelectorAddonImgLruCache.set(key, {
-            imageBase64: '',
-            invalid: true,
-        });
-        console.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
-        this.logger.error(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
-        return undefined;
-        // return Promise.reject(`[BeautySelectorAddon] BeautySelectorAddonImgGetter getBase64Image() imgFile not found: ${this.imgPath} in ${this.zip.modInfo?.name}`);
-    }
-
-}
-
 export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
     constructor(
         public modName: string,
@@ -189,7 +89,7 @@ export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
         if (this.invalid) {
             return undefined;
         }
-        
+
         if (this.imgCache) {
             return this.imgCache;
         }
@@ -402,7 +302,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             const oImg = mod.imgs;
             const imgList = new Map<string, ModImgEx>(
                 oImg.map(T => {
-                    const imageGetter = new BeautySelectorAddonImgGetter(modName, modZip, T.path, this.logger);
+                    const imageGetter = new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), T.path, this.imageStore, this.logger);
                     imageGetter.imgCache = T.getter.imgCache;
                     return [T.path, {
                         path: T.path,
@@ -441,14 +341,14 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 this.logger.warn(`[BeautySelectorAddon] registerMod: type[${type}] already exist in [${this.table.get(type)!.name}]. this type will not be add.`);
                 return;
             }
-            
+
             // Check if images are already stored in IndexedDB
             const hasStoredImages = await this.imageStore.hasStoredImages(modName, modHash.toString(), type);
-            
+
             if (!hasStoredImages) {
                 // Initialize streaming storage for efficient memory usage
                 const streaming = await this.imageStore.initStreamingStorage(modName, modHash.toString(), type);
-                
+
                 try {
                     // Process images one by one to minimize memory usage
                     for (const imagePath of params.imgFileList) {
@@ -462,7 +362,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                     if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
                                     else if (ext === 'gif') mimeType = 'image/gif';
                                     else if (ext === 'webp') mimeType = 'image/webp';
-                                    
+
                                     const imageData = `data:${mimeType};base64,${base64Data}`;
                                     await streaming.storeImage(imagePath, imagePath, imageData);
                                 } catch (error) {
@@ -471,20 +371,20 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             }
                         }
                     }
-                    
+
                     // Finalize streaming storage
                     await streaming.finalize();
                     console.log('[BeautySelectorAddon] streamed images to IndexedDB (Type1)', [modName, type, streaming.imagePaths.length]);
-                    
+
                 } catch (error) {
                     console.error('[BeautySelectorAddon] Error during streaming image processing (Type1)', error);
                     throw error;
                 }
             }
-            
+
             // Get image paths from IndexedDB
             const imagePaths = await this.imageStore.getImagePaths(modName, modHash.toString(), type);
-            
+
             const imgList = new Map<string, ModImgEx>();
             if (imagePaths) {
                 for (const imagePath of imagePaths) {
@@ -495,7 +395,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     });
                 }
             }
-            
+
             const BS = {
                 name: addonName,
                 mod: mod,
@@ -541,7 +441,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 if (isParamsType2AItem(L)) {
                     // Check if images are already stored in IndexedDB
                     const hasStoredImages = await this.imageStore.hasStoredImages(modName, modHash.toString(), type);
-                    
+
                     if (!hasStoredImages) {
                         const imgFileListFile = await modZip.zip.file(L.imgFileListFile)?.async('string');
                         if (!imgFileListFile) {
@@ -562,14 +462,14 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             this.logger.error(`[BeautySelectorAddon] registerMod: modName[${mod.name}] type[${type}] imgFileListFile is not a valid json. this type will not be add.`);
                             continue;
                         }
-                        
+
                         // Initialize streaming storage for efficient memory usage
                         const streaming = await this.imageStore.initStreamingStorage(modName, modHash.toString(), type);
-                        
+
                         try {
                             // Process images one by one to minimize memory usage
                             const dirP = getDirFromPath(L.imgFileListFile);
-                            
+
                             for (const imagePath of imgFileList) {
                                 const realPath = dirP + imagePath;
                                 if (isImageFile(realPath)) {
@@ -582,7 +482,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                             if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
                                             else if (ext === 'gif') mimeType = 'image/gif';
                                             else if (ext === 'webp') mimeType = 'image/webp';
-                                            
+
                                             const imageData = `data:${mimeType};base64,${base64Data}`;
                                             await streaming.storeImage(imagePath, realPath, imageData);
                                         } catch (error) {
@@ -591,20 +491,20 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                     }
                                 }
                             }
-                            
+
                             // Finalize streaming storage
                             await streaming.finalize();
                             console.log('[BeautySelectorAddon] streamed images to IndexedDB (Type2A)', [modName, type, streaming.imagePaths.length]);
-                            
+
                         } catch (error) {
                             console.error('[BeautySelectorAddon] Error during streaming image processing (Type2A)', error);
                             throw error;
                         }
                     }
-                    
+
                     // Get image paths from IndexedDB
                     const imagePaths = await this.imageStore.getImagePaths(modName, modHash.toString(), type);
-                    
+
                     const imgList = new Map<string, ModImgEx>();
                     if (imagePaths) {
                         for (const imagePath of imagePaths) {
@@ -615,7 +515,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             });
                         }
                     }
-                    
+
                     BS.typeImg.set(type, imgList);
                     BS.type.push(type);
 
@@ -628,14 +528,14 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                 } else if (isParamsType2BItem(L)) {
                     // Check if images are already stored in IndexedDB
                     const hasStoredImages = await this.imageStore.hasStoredImages(modName, modHash.toString(), type);
-                    
+
                     if (!hasStoredImages) {
                         // Initialize streaming storage for this mod type
                         const streaming = await this.imageStore.initStreamingStorage(modName, modHash.toString(), type);
-                        
+
                         try {
                             // Process images with streaming approach to minimize memory usage
-                            const fileList = await traverseZipFolder(modZip.zip, L.imgDir, { 
+                            const fileList = await traverseZipFolder(modZip.zip, L.imgDir, {
                                 onImageFound: async (imageInfo) => {
                                     try {
                                         const base64Data = await imageInfo.file.async('base64');
@@ -644,7 +544,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                         if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
                                         else if (ext === 'gif') mimeType = 'image/gif';
                                         else if (ext === 'webp') mimeType = 'image/webp';
-                                        
+
                                         const imageData = `data:${mimeType};base64,${base64Data}`;
                                         await streaming.storeImage(imageInfo.pathInSpecialFolder!, imageInfo.pathInZip, imageData);
                                     } catch (error) {
@@ -652,12 +552,12 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                     }
                                 }
                             });
-                            
+
                             console.log('[BeautySelectorAddon] fileList from streaming traverseZipFolder', [modName, modHash, type, fileList.length]);
-                            
+
                             // Finalize the streaming storage
                             await streaming.finalize();
-                            
+
                             // Also cache file list for compatibility
                             await this.cachedFileList.writeCachedFileList(modName, modHash.toString(), type, fileList.filter(T => T.isFile));
                         } catch (error) {
@@ -665,10 +565,10 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             throw error;
                         }
                     }
-                    
+
                     // Get image paths from IndexedDB
                     const imagePaths = await this.imageStore.getImagePaths(modName, modHash.toString(), type);
-                    
+
                     const imgList = new Map<string, ModImgEx>();
                     if (imagePaths) {
                         for (const imagePath of imagePaths) {
@@ -679,7 +579,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             });
                         }
                     }
-                    
+
                     BS.typeImg.set(type, imgList);
                     BS.type.push(type);
 
@@ -1244,7 +1144,7 @@ export class ModImageStore {
                         imageStorage.createIndex('by-modName-type', ['modName', 'type']);
                         imageStorage.createIndex('by-modName-modHashString-type', ['modName', 'modHashString', 'type']);
 
-                        // Create imageMetadata 
+                        // Create imageMetadata
                         const metadataStorage = database.createObjectStore('imageMetadata', {
                             keyPath: 'metaKey',
                         });
@@ -1279,7 +1179,7 @@ export class ModImageStore {
     }
 
     /**
-     * Initialize streaming storage for a mod type 
+     * Initialize streaming storage for a mod type
      */
     async initStreamingStorage(modName: string, modHashString: string, type: string): Promise<{
         transaction: any;
@@ -1295,7 +1195,7 @@ export class ModImageStore {
         }
 
         const metaKey = `${modName}_${modHashString}_${type}`;
-        
+
         // Check if already exists
         const existingMeta = await this.dbRef!.get('imageMetadata', metaKey);
         if (existingMeta) {
@@ -1336,16 +1236,16 @@ export class ModImageStore {
             console.log('[BeautySelectorAddon] Streamed images for mod', [modName, type, imagePaths.length]);
         };
 
-        return { transaction, imagePaths, storeImage, finalize };
+        return {transaction, imagePaths, storeImage, finalize};
     }
 
     /**
      * Store images and metadata for a mod type
      */
     async storeModImages(
-        modName: string, 
-        modHashString: string, 
-        type: string, 
+        modName: string,
+        modHashString: string,
+        type: string,
         imageFiles: { imagePath: string, realPath: string, imageData: string }[]
     ): Promise<void> {
         try {
@@ -1356,7 +1256,7 @@ export class ModImageStore {
         }
 
         const metaKey = `${modName}_${modHashString}_${type}`;
-        
+
         // Check if already exists
         const existingMeta = await this.dbRef!.get('imageMetadata', metaKey);
         if (existingMeta) {
@@ -1365,7 +1265,7 @@ export class ModImageStore {
         }
 
         const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
-        
+
         try {
             const imageStore = transaction.objectStore('imageStore');
             const metadataStore = transaction.objectStore('imageMetadata');
@@ -1447,7 +1347,7 @@ export class ModImageStore {
         }
 
         const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
-        
+
         try {
             const imageStore = transaction.objectStore('imageStore');
             const metadataStore = transaction.objectStore('imageMetadata');
@@ -1486,7 +1386,7 @@ export class ModImageStore {
         }
 
         const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
-        
+
         try {
             // Remove images for non-existent mods
             for await (const cursor of transaction.objectStore('imageStore')) {
@@ -1497,7 +1397,7 @@ export class ModImageStore {
                 }
             }
 
-            // Remove metadata for non-existent mods  
+            // Remove metadata for non-existent mods
             for await (const cursor of transaction.objectStore('imageMetadata')) {
                 const meta = cursor.value;
                 if (!modNameSet.has(meta.modName)) {

@@ -122,7 +122,7 @@ export async function traverseZipFolder(
                 const file = value.get('__file__') as JSZipObjectLikeReadOnlyInterface;
                 const isInSpecialFolderPath = newPath.startsWith(normalizedPath);
                 const isImage = !file.dir && isImageFile(newPath);
-                
+
                 const zipFile: ZipFile = {
                     pathInZip: newPath,
                     pathInSpecialFolder: isInSpecialFolderPath ? newPath.slice(normalizedPath.length) : undefined,
