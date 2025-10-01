@@ -77,12 +77,11 @@ export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
     ) {
     }
 
-    imgCache?: string | undefined;
     invalid: boolean = false;
 
     async forceCache() {
         // No-op for IndexedDB version since data is already cached
-        this.imgCache = await this.getBase64Image();
+        // this.imgCache = await this.getBase64Image();
     }
 
     async getBase64Image() {
@@ -91,14 +90,9 @@ export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
             return undefined;
         }
 
-        if (this.imgCache) {
-            return this.imgCache;
-        }
-
         try {
             const imageData = await this.imageStore.getImage(this.modName, this.modHashString, this.imgPath);
             if (imageData) {
-                this.imgCache = imageData;
                 return imageData;
             } else {
                 this.invalid = true;
@@ -291,12 +285,10 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             const oImg = mod.imgs;
             const imgList = new Map<string, ModImgEx>(
                 oImg.map(T => {
-                    const imageGetter = new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), T.path, this.imageStore, this.logger);
-                    imageGetter.imgCache = T.getter.imgCache;
                     return [T.path, {
                         path: T.path,
                         realPath: T.path,
-                        getter: imageGetter,
+                        getter: T.getter,
                     }];
                 }),
             );
@@ -537,6 +529,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                         const imageData = `data:${mimeType};base64,${base64Data}`;
                                         await streaming.storeImage(imageInfo.pathInSpecialFolder!, imageInfo.pathInZip, imageData);
                                     } catch (error) {
+                                        // ERROR : DOMException: A request was placed against a transaction which is currently not active, or which is finished.
                                         console.warn(`[BeautySelectorAddon] Failed to process image: ${imageInfo.pathInZip}`, error);
                                     }
                                 }

@@ -314,7 +314,7 @@ export class ModImageStore {
      * Initialize streaming storage for a mod type
      */
     async initStreamingStorage(modName: string, modHashString: string, type: string): Promise<{
-        transaction: any;
+        transaction: IDBPTransaction<ModImageStoreDbSchema, ("imageStore" | "imageMetadata")[], "readwrite">;
         imagePaths: string[];
         storeImage: (imagePath: string, realPath: string, imageData: string) => Promise<void>;
         finalize: () => Promise<void>;
@@ -350,6 +350,7 @@ export class ModImageStore {
                 imageData,
                 imageKey,
             };
+            // ERROR : DOMException: A request was placed against a transaction which is currently not active, or which is finished.
             await imageStore.put(imageRecord);
             imagePaths.push(imagePath);
         };
