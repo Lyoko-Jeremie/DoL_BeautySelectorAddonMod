@@ -314,7 +314,6 @@ export class ModImageStore {
      * Initialize streaming storage for a mod type
      */
     async initStreamingStorage(modName: string, modHashString: string, type: string): Promise<{
-        transaction: IDBPTransaction<ModImageStoreDbSchema, ("imageStore" | "imageMetadata")[], "readwrite">;
         imagePaths: string[];
         storeImage: (imagePath: string, realPath: string, imageData: string) => Promise<void>;
         finalize: () => Promise<void>;
@@ -334,11 +333,9 @@ export class ModImageStore {
             throw new Error(`Images already stored for ${modName} ${type}`);
         }
 
-        const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
-        const imageStore = transaction.objectStore('imageStore');
-        const metadataStore = transaction.objectStore('imageMetadata');
         const imagePaths: string[] = [];
 
+        // Store each image in its own transaction to avoid transaction timeout
         const storeImage = async (imagePath: string, realPath: string, imageData: string) => {
             const imageKey = `${modName}_${modHashString}_${imagePath}`;
             const imageRecord = {
@@ -350,13 +347,21 @@ export class ModImageStore {
                 imageData,
                 imageKey,
             };
-            // ERROR : DOMException: A request was placed against a transaction which is currently not active, or which is finished.
+            
+            // Use a new transaction for each image to avoid timeout issues
+            const transaction = this.dbRef!.transaction(['imageStore'], 'readwrite');
+            const imageStore = transaction.objectStore('imageStore');
             await imageStore.put(imageRecord);
+            await transaction.done;
+            
             imagePaths.push(imagePath);
         };
 
         const finalize = async () => {
-            // Store metadata
+            // Store metadata in its own transaction
+            const transaction = this.dbRef!.transaction(['imageMetadata'], 'readwrite');
+            const metadataStore = transaction.objectStore('imageMetadata');
+            
             const metadataRecord = {
                 modName,
                 modHashString,
@@ -369,7 +374,7 @@ export class ModImageStore {
             console.log('[BeautySelectorAddon] Streamed images for mod', [modName, type, imagePaths.length]);
         };
 
-        return {transaction, imagePaths, storeImage, finalize};
+        return {imagePaths, storeImage, finalize};
     }
 
     /**
