@@ -101,17 +101,36 @@ export async function traverseZipFolder(
     const {
         getFileRef = false,
         onImageFound,
-        progressCallback = (p: number, t: number) => {
-        },
+        progressCallback,
     } = options;
-
-    // TODO impl call progressCallback
 
     const normalizedPath = specialFolderPath.endsWith('/') ? specialFolderPath : specialFolderPath + '/';
     const folderStack: [string, FileTreeMap][] = [['', buildFileTree(zip)]];
     const result: ZipFile[] = [];
 
     console.log('folderStack', folderStack);
+
+    // Count total files for progress tracking
+    let totalFiles = 0;
+    let processedFiles = 0;
+    
+    // First pass: count total files
+    const countFiles = (map: FileTreeMap): number => {
+        let count = 0;
+        for (const [name, value] of map.entries()) {
+            if (name === '__file__') {
+                count++;
+            } else if (value instanceof Map) {
+                count += countFiles(value);
+            }
+        }
+        return count;
+    };
+    
+    // Count total files from the root
+    if (progressCallback) {
+        totalFiles = countFiles(folderStack[0][1]);
+    }
 
     while (folderStack.length > 0) {
         const [currentPath, currentMap] = folderStack.pop()!;
@@ -156,6 +175,12 @@ export async function traverseZipFolder(
                         pathInSpecialFolder: zipFile.pathInSpecialFolder,
                         file: file
                     });
+                    
+                    // Update progress after processing each image
+                    if (progressCallback) {
+                        processedFiles++;
+                        await progressCallback(processedFiles, totalFiles);
+                    }
                 }
 
                 result.push(zipFile);
