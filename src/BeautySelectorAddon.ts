@@ -226,7 +226,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         await this.cachedFileList.removeNotExistMod(this.registerModNameSet);
         await this.imageStore.removeNotExistModImages(this.registerModNameSet);
         this.cachedFileList.close();
-        this.imageStore.close();
+        // this.imageStore.close();
 
         console.log('[BeautySelectorAddon] all ok');
         this.logger.log('[BeautySelectorAddon] all ok');
@@ -529,7 +529,6 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                         const imageData = `data:${mimeType};base64,${base64Data}`;
                                         await streaming.storeImage(imageInfo.pathInSpecialFolder!, imageInfo.pathInZip, imageData);
                                     } catch (error) {
-                                        // ERROR : DOMException: A request was placed against a transaction which is currently not active, or which is finished.
                                         console.warn(`[BeautySelectorAddon] Failed to process image: ${imageInfo.pathInZip}`, error);
                                     }
                                 }

@@ -11,7 +11,7 @@ export interface CachedFileListDbSchema extends DBSchema {
             modName: string,
             modHashString: string,
             type: string,
-            fileListJsonString: string,
+            fileList: ZipFile[],
             hashKey: string, // `${modName}_${modHashString}_${type}`
         },
         key: string,
@@ -131,7 +131,7 @@ export class CachedFileList {
         }
 
         try {
-            const fileList = JSON5.parse(r.fileListJsonString);
+            const fileList = r.fileList;
             if (isArray(fileList) && every(fileList, isZipFileObj)) {
                 return fileList;
             }
@@ -141,7 +141,7 @@ export class CachedFileList {
         } catch (e) {
             // if error , remove it
             await this.dbRef!.delete('cachedFileList', r.hashKey);
-            console.error('[BeautySelectorAddon] getCachedFileList error', [r.fileListJsonString, e]);
+            console.error('[BeautySelectorAddon] getCachedFileList error', [r.fileList, e]);
             return undefined;
         }
     }
@@ -166,14 +166,13 @@ export class CachedFileList {
                 return false;
             }
 
-            const fileListJsonString = JSON5.stringify(fileList);
             const value = {
                 modName: modName,
                 modHashString: modHashString,
                 type: type,
-                fileListJsonString: fileListJsonString,
+                fileList: fileList,
                 hashKey: hashKey,
-            };
+            } satisfies CachedFileListDbSchema['cachedFileList']['value'];
 
             await os.put(value);
             console.log('[BeautySelectorAddon] writeCachedFileList ok', [value]);
@@ -347,10 +346,10 @@ export class ModImageStore {
                 imageData,
                 imageKey,
             };
-            
+
             // Direct put() is simpler and handles transactions internally
             await this.dbRef!.put('imageStore', imageRecord);
-            
+
             imagePaths.push(imagePath);
         };
 
@@ -368,70 +367,6 @@ export class ModImageStore {
         };
 
         return {imagePaths, storeImage, finalize};
-    }
-
-    /**
-     * Store images and metadata for a mod type
-     */
-    async storeModImages(
-        modName: string,
-        modHashString: string,
-        type: string,
-        imageFiles: { imagePath: string, realPath: string, imageData: string }[]
-    ): Promise<void> {
-        try {
-            await this.iniImageStore();
-        } catch (e) {
-            console.error('[BeautySelectorAddon] storeModImages error', [e]);
-            throw e;
-        }
-
-        const metaKey = `${modName}_${modHashString}_${type}`;
-
-        // Check if already exists
-        const existingMeta = await this.dbRef!.get('imageMetadata', metaKey);
-        if (existingMeta) {
-            console.log('[BeautySelectorAddon] Images already stored for', [modName, type]);
-            return;
-        }
-
-        const transaction = this.dbRef!.transaction(['imageStore', 'imageMetadata'], 'readwrite');
-
-        try {
-            const imageStore = transaction.objectStore('imageStore');
-            const metadataStore = transaction.objectStore('imageMetadata');
-
-            // Store individual images
-            const imagePaths: string[] = [];
-            for (const imageFile of imageFiles) {
-                const imageKey = `${modName}_${modHashString}_${imageFile.imagePath}`;
-                const imageRecord = {
-                    modName,
-                    modHashString,
-                    type,
-                    imagePath: imageFile.imagePath,
-                    realPath: imageFile.realPath,
-                    imageData: imageFile.imageData,
-                    imageKey,
-                };
-                await imageStore.put(imageRecord);
-                imagePaths.push(imageFile.imagePath);
-            }
-
-            // Store metadata
-            const metadataRecord = {
-                modName,
-                modHashString,
-                type,
-                imagePaths,
-                metaKey,
-            };
-            await metadataStore.put(metadataRecord);
-
-            console.log('[BeautySelectorAddon] Stored images for mod', [modName, type, imagePaths.length]);
-        } finally {
-            await transaction.done;
-        }
     }
 
     /**
@@ -542,10 +477,10 @@ export class ModImageStore {
     }
 
     close() {
-        this.dbRef?.close();
-        this.isInit = false;
-        this.isClose = true;
-        this.dbRef = undefined;
+        // this.dbRef?.close();
+        // this.isInit = false;
+        // this.isClose = true;
+        // this.dbRef = undefined;
     }
 
 }
