@@ -41,6 +41,12 @@ export interface TraverseOptions {
         pathInSpecialFolder?: string;
         file: JSZipObjectLikeReadOnlyInterface;
     }) => Promise<void>;
+    /**
+     * 进度回调函数
+     * @param progress
+     * @param total
+     */
+    progressCallback?: (progress: number, total: number) => Promise<void> | void;
 }
 
 /**
@@ -95,7 +101,11 @@ export async function traverseZipFolder(
     const {
         getFileRef = false,
         onImageFound,
+        progressCallback = (p: number, t: number) => {
+        },
     } = options;
+
+    // TODO impl call progressCallback
 
     const normalizedPath = specialFolderPath.endsWith('/') ? specialFolderPath : specialFolderPath + '/';
     const folderStack: [string, FileTreeMap][] = [['', buildFileTree(zip)]];
@@ -181,7 +191,7 @@ async function example() {
 
     try {
         // 基本遍历
-        const filesBasic = await traverseZipFolder(zip, 'folder1', console, );
+        const filesBasic = await traverseZipFolder(zip, 'folder1', console,);
         console.log('Basic traversal:', filesBasic);
 
         // 带图片处理回调的遍历
