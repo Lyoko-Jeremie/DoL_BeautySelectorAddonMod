@@ -335,7 +335,7 @@ export class ModImageStore {
 
         const imagePaths: string[] = [];
 
-        // Store each image in its own transaction to avoid transaction timeout
+        // Use direct put() method which internally creates and commits short transactions
         const storeImage = async (imagePath: string, realPath: string, imageData: string) => {
             const imageKey = `${modName}_${modHashString}_${imagePath}`;
             const imageRecord = {
@@ -348,20 +348,14 @@ export class ModImageStore {
                 imageKey,
             };
             
-            // Use a new transaction for each image to avoid timeout issues
-            const transaction = this.dbRef!.transaction(['imageStore'], 'readwrite');
-            const imageStore = transaction.objectStore('imageStore');
-            await imageStore.put(imageRecord);
-            await transaction.done;
+            // Direct put() is simpler and handles transactions internally
+            await this.dbRef!.put('imageStore', imageRecord);
             
             imagePaths.push(imagePath);
         };
 
         const finalize = async () => {
-            // Store metadata in its own transaction
-            const transaction = this.dbRef!.transaction(['imageMetadata'], 'readwrite');
-            const metadataStore = transaction.objectStore('imageMetadata');
-            
+            // Store metadata using direct put() method
             const metadataRecord = {
                 modName,
                 modHashString,
@@ -369,8 +363,7 @@ export class ModImageStore {
                 imagePaths,
                 metaKey,
             };
-            await metadataStore.put(metadataRecord);
-            await transaction.done;
+            await this.dbRef!.put('imageMetadata', metadataRecord);
             console.log('[BeautySelectorAddon] Streamed images for mod', [modName, type, imagePaths.length]);
         };
 
