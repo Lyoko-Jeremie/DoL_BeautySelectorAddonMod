@@ -516,6 +516,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
 
                         try {
                             // Process images with streaming approach to minimize memory usage
+                            let previousPercent = 0;
                             const fileList = await traverseZipFolder(modZip.zip, L.imgDir, this.logger, {
                                 onImageFound: async (imageInfo) => {
                                     try {
@@ -531,7 +532,18 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                     } catch (error) {
                                         console.warn(`[BeautySelectorAddon] Failed to process image: ${imageInfo.pathInZip}`, error);
                                     }
-                                }
+                                },
+                                progressCallback: async (processedCount, totalCount) => {
+                                    // console.log(`[BeautySelectorAddon] traverseZipFolder progress`, [modName, modHash, type, processedCount, totalCount]);
+                                    const floorValue = Math.floor((processedCount / totalCount) * 100);
+                                    if (previousPercent !== floorValue) {
+                                        previousPercent = floorValue;
+                                        if ((previousPercent % 10) === 0) {
+                                            await this.logger.log(`[BeautySelectorAddon] Cache file to IndexDB [${modName}] ...... ` + floorValue);
+                                            console.log(`[BeautySelectorAddon] Cache file to IndexDB ` + floorValue, [modName, modHash, type]);
+                                        }
+                                    }
+                                },
                             });
 
                             console.log('[BeautySelectorAddon] fileList from streaming traverseZipFolder', [modName, modHash, type, fileList.length]);
