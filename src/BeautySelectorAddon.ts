@@ -516,7 +516,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
 
                         try {
                             // Process images with streaming approach to minimize memory usage
-                            const fileList = await traverseZipFolder(modZip.zip, L.imgDir, {
+                            const fileList = await traverseZipFolder(modZip.zip, L.imgDir, this.logger, {
                                 onImageFound: async (imageInfo) => {
                                     try {
                                         const base64Data = await imageInfo.file.async('base64');

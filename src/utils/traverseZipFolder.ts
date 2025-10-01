@@ -6,6 +6,7 @@ import {
     OutputType,
 } from '../../../../dist-BeforeSC2/JSZipLikeReadOnlyInterface';
 import {isPlainObject, isNil, isString, isBoolean} from 'lodash';
+import type {LogWrapper} from "../../../../dist-BeforeSC2/ModLoadController";
 
 export interface ZipFile {
     pathInZip: string;
@@ -81,13 +82,15 @@ function buildFileTree(zip: JSZipLikeReadOnlyInterface): FileTreeMap {
  * 使用迭代方式异步遍历 JSZip 中指定路径的文件夹
  * @param zip JSZip 实例
  * @param specialFolderPath 指定的文件夹路径
+ * @param logger
  * @param options 遍历选项
  * @returns 文件列表，可包含文件内容
  */
 export async function traverseZipFolder(
     zip: JSZipLikeReadOnlyInterface,
     specialFolderPath: string,
-    options: TraverseOptions = {}
+    logger: LogWrapper,
+    options: TraverseOptions = {},
 ): Promise<ZipFile[]> {
     const {
         getFileRef = false,
@@ -178,11 +181,11 @@ async function example() {
 
     try {
         // 基本遍历
-        const filesBasic = await traverseZipFolder(zip, 'folder1');
+        const filesBasic = await traverseZipFolder(zip, 'folder1', console, );
         console.log('Basic traversal:', filesBasic);
 
         // 带图片处理回调的遍历
-        const filesWithImageProcessing = await traverseZipFolder(zip, 'folder1', {
+        const filesWithImageProcessing = await traverseZipFolder(zip, 'folder1', console, {
             onImageFound: async (imageInfo) => {
                 console.log('Processing image:', imageInfo.pathInZip);
                 // 在这里可以直接处理图片，例如存储到数据库
