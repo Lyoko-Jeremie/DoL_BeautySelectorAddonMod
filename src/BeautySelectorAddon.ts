@@ -85,7 +85,7 @@ export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
     }
 
     async getBase64Image() {
-        arguments.length > 0 && console.error('BeautySelectorAddonImgGetterIndexedDB getBase64Image() cannot have arguments.', arguments);
+        arguments.length > 0 && console.error('[BeautySelectorAddon] BeautySelectorAddonImgGetterIndexedDB getBase64Image() cannot have arguments.', arguments);
         if (this.invalid) {
             return undefined;
         }
