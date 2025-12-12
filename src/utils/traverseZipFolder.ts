@@ -6,19 +6,20 @@ import {
     OutputType,
 } from '../../../../dist-BeforeSC2/JSZipLikeReadOnlyInterface';
 import {isPlainObject, isNil, isString, isBoolean} from 'lodash';
+import type {LogWrapper} from "../../../../dist-BeforeSC2/ModLoadController";
 
 export interface ZipFile {
     pathInZip: string;
     pathInSpecialFolder?: string;
     file?: JSZipObjectLikeReadOnlyInterface;
-    content?: string | Awaited<ReturnType<JSZipObjectLikeReadOnlyInterface['async']>>;
     isFile: boolean;
     isFolder: boolean;
     isInSpecialFolderPath: boolean;
+    isImage?: boolean; // flag to indicate if this is an image file
 }
 
 export function isZipFileObj(A: any): A is ZipFile {
-    return isPlainObject(A) && isString(A.path) && isBoolean(A.isFile) && isBoolean(A.isFolder) && isBoolean(A.isInSpecialFolderPath);
+    return isPlainObject(A) && isString(A.pathInZip) && isBoolean(A.isFile) && isBoolean(A.isFolder) && isBoolean(A.isInSpecialFolderPath);
 }
 
 export interface TraverseOptions {
@@ -28,20 +29,32 @@ export interface TraverseOptions {
      */
     getFileRef?: boolean;
     /**
-     * 是否读取文件内容
-     * @default false
-     */
-    readContent?: boolean;
-    /**
-     * 文件内容读取格式
-     * @default 'string'
-     */
-    contentFormat?: OutputType;
-    /**
      * 是否跳过文件夹
      * @default false
      */
     skipFolder?: boolean;
+    /**
+     * 图片处理回调函数 - 在发现图片时立即调用，避免内存积累
+     */
+    onImageFound?: (imageInfo: {
+        pathInZip: string;
+        pathInSpecialFolder?: string;
+        file: JSZipObjectLikeReadOnlyInterface;
+    }) => Promise<void>;
+    /**
+     * 进度回调函数
+     * @param progress
+     * @param total
+     */
+    progressCallback?: (progress: number, total: number) => Promise<void> | void;
+}
+
+/**
+ * Helper function to check if a file is an image based on extension
+ */
+export function isImageFile(path: string): boolean {
+    const ext = path.split('.').pop()?.toLowerCase();
+    return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext || '');
 }
 
 type FileTreeMap = Map<string, FileTreeMap | JSZipObjectLikeReadOnlyInterface>;
@@ -75,18 +88,20 @@ function buildFileTree(zip: JSZipLikeReadOnlyInterface): FileTreeMap {
  * 使用迭代方式异步遍历 JSZip 中指定路径的文件夹
  * @param zip JSZip 实例
  * @param specialFolderPath 指定的文件夹路径
+ * @param logger
  * @param options 遍历选项
  * @returns 文件列表，可包含文件内容
  */
 export async function traverseZipFolder(
     zip: JSZipLikeReadOnlyInterface,
     specialFolderPath: string,
-    options: TraverseOptions = {}
+    logger: LogWrapper,
+    options: TraverseOptions = {},
 ): Promise<ZipFile[]> {
     const {
         getFileRef = false,
-        readContent = false,
-        contentFormat = 'string',
+        onImageFound,
+        progressCallback,
     } = options;
 
     const normalizedPath = specialFolderPath.endsWith('/') ? specialFolderPath : specialFolderPath + '/';
@@ -94,6 +109,28 @@ export async function traverseZipFolder(
     const result: ZipFile[] = [];
 
     console.log('folderStack', folderStack);
+
+    // Count total files for progress tracking
+    let totalFiles = 0;
+    let processedFiles = 0;
+    
+    // First pass: count total files
+    const countFiles = (map: FileTreeMap): number => {
+        let count = 0;
+        for (const [name, value] of map.entries()) {
+            if (name === '__file__') {
+                count++;
+            } else if (value instanceof Map) {
+                count += countFiles(value);
+            }
+        }
+        return count;
+    };
+    
+    // Count total files from the root
+    if (progressCallback) {
+        totalFiles = countFiles(folderStack[0][1]);
+    }
 
     while (folderStack.length > 0) {
         const [currentPath, currentMap] = folderStack.pop()!;
@@ -116,39 +153,41 @@ export async function traverseZipFolder(
             if (value.has('__file__')) {
                 const file = value.get('__file__') as JSZipObjectLikeReadOnlyInterface;
                 const isInSpecialFolderPath = newPath.startsWith(normalizedPath);
+                const isImage = !file.dir && isImageFile(newPath);
+
                 const zipFile: ZipFile = {
                     pathInZip: newPath,
                     pathInSpecialFolder: isInSpecialFolderPath ? newPath.slice(normalizedPath.length) : undefined,
                     isFile: !file.dir,
                     isFolder: file.dir,
                     isInSpecialFolderPath: isInSpecialFolderPath,
+                    isImage: isImage,
                 };
 
                 if (getFileRef) {
                     zipFile.file = file;
                 }
 
-                if (readContent && !file.dir) {
-                    result.push(zipFile);
-                } else {
-                    result.push(zipFile);
+                // Process images immediately if callback is provided
+                if (isImage && onImageFound && isInSpecialFolderPath) {
+                    await onImageFound({
+                        pathInZip: newPath,
+                        pathInSpecialFolder: zipFile.pathInSpecialFolder,
+                        file: file
+                    });
+                    
+                    // Update progress after processing each image
+                    if (progressCallback) {
+                        processedFiles++;
+                        await progressCallback(processedFiles, totalFiles);
+                    }
                 }
+
+                result.push(zipFile);
             } else {
                 folderStack.push([newPath + '/', value]);
             }
         }
-    }
-
-    if (readContent) {
-        await Promise.all(result.map(async (zipFile) => {
-            if (zipFile.file && !zipFile.file.dir) {
-                try {
-                    zipFile.content = await zipFile.file.async(contentFormat);
-                } catch (error) {
-                    console.error(`Failed to read content of ${zipFile.pathInZip}:`, error);
-                }
-            }
-        }));
     }
 
     // console.log('result', result);
@@ -177,13 +216,15 @@ async function example() {
 
     try {
         // 基本遍历
-        const filesBasic = await traverseZipFolder(zip, 'folder1');
+        const filesBasic = await traverseZipFolder(zip, 'folder1', console,);
         console.log('Basic traversal:', filesBasic);
 
-        // 带内容遍历
-        const filesWithContent = await traverseZipFolder(zip, 'folder1', {
-            readContent: true,
-            contentFormat: 'string'
+        // 带图片处理回调的遍历
+        const filesWithImageProcessing = await traverseZipFolder(zip, 'folder1', console, {
+            onImageFound: async (imageInfo) => {
+                console.log('Processing image:', imageInfo.pathInZip);
+                // 在这里可以直接处理图片，例如存储到数据库
+            }
         });
 
     } catch (error) {
