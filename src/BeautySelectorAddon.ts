@@ -187,7 +187,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
             }
         );
         this.IdbKeyValRef = this.gModUtils.getIdbKeyValRef();
-        this.cachedFileList = new CachedFileList(this.gModUtils);
+        this.cachedFileList = new CachedFileList(this.gModUtils, this.logger);
         this.imageStore = new ModImageStore(this.gModUtils, this.logger);
 
         const theName = this.gModUtils.getNowRunningModName();
@@ -539,7 +539,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                                     if (previousPercent !== floorValue) {
                                         previousPercent = floorValue;
                                         if ((previousPercent % 10) === 0) {
-                                            await this.logger.log(`[BeautySelectorAddon] Cache file to IndexDB [${modName}] ...... ` + floorValue);
+                                            this.logger.log(`[BeautySelectorAddon] Cache file to IndexDB [${modName}] ...... ` + floorValue);
                                             console.log(`[BeautySelectorAddon] Cache file to IndexDB ` + floorValue, [modName, modHash, type]);
                                         }
                                     }
@@ -547,6 +547,8 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             });
 
                             console.log('[BeautySelectorAddon] fileList from streaming traverseZipFolder', [modName, modHash, type, fileList.length]);
+                            this.logger.log(`[BeautySelectorAddon] fileList from streaming traverseZipFolder [${modName}] type[${type}] count[${fileList.length}]`);
+
 
                             // Finalize the streaming storage
                             await streaming.finalize();
@@ -763,6 +765,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
         if (list.every(T => nn.has(T))) {
             this.typeOrderUsed = list.map(T => nn.get(T)!);
             console.log('[BeautySelectorAddon] loadSavedOrder: ok.', [list]);
+            this.logger.log(`[BeautySelectorAddon] loadSavedOrder: ok.`);
         } else {
             const nt = list.filter(T => !nn.has(T));
             console.log('[BeautySelectorAddon] loadSavedOrder: some type not found. reset.', [list, nt]);

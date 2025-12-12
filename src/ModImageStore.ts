@@ -73,6 +73,7 @@ export class CachedFileList {
 
     constructor(
         public gModUtils: ModUtils,
+        public logger: LogWrapper,
     ) {
     }
 
@@ -176,6 +177,7 @@ export class CachedFileList {
 
             await os.put(value);
             console.log('[BeautySelectorAddon] writeCachedFileList ok', [value]);
+            this.logger.log(`[BeautySelectorAddon] writeCachedFileList ok for mod [${modName}], type [${type}], files count [${fileList.length}]`);
         } finally {
             await tans.done;
         }
@@ -364,6 +366,7 @@ export class ModImageStore {
             };
             await this.dbRef!.put('imageMetadata', metadataRecord);
             console.log('[BeautySelectorAddon] Streamed images for mod', [modName, type, imagePaths.length]);
+            this.logger.log(`[BeautySelectorAddon] Streamed images for mod [${modName}], type [${type}], count [${imagePaths.length}]`);
         };
 
         return {imagePaths, storeImage, finalize};
@@ -458,7 +461,7 @@ export class ModImageStore {
             for await (const cursor of transaction.objectStore('imageStore')) {
                 const image = cursor.value;
                 if (!modNameSet.has(image.modName)) {
-                    console.log('[BeautySelectorAddon] removeNotExistModImages image', [image.imageKey]);
+                    // console.log('[BeautySelectorAddon] removeNotExistModImages image', [image.imageKey]);
                     await cursor.delete();
                 }
             }
