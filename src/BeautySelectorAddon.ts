@@ -71,6 +71,7 @@ export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
     constructor(
         public modName: string,
         public modHashString: string,
+        public type: string,
         public imgPath: string,
         public imageStore: ModImageStore,
         public logger: LogWrapper,
@@ -91,7 +92,7 @@ export class BeautySelectorAddonImgGetterIndexedDB implements IModImgGetter {
         }
 
         try {
-            const imageData = await this.imageStore.getImage(this.modName, this.modHashString, this.imgPath);
+            const imageData = await this.imageStore.getImage(this.modName, this.modHashString, this.type, this.imgPath);
             if (imageData) {
                 return imageData;
             } else {
@@ -372,7 +373,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                     imgList.set(imagePath, {
                         path: imagePath,
                         realPath: imagePath, // Not needed for IndexedDB version
-                        getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), imagePath, this.imageStore, this.logger),
+                        getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), type, imagePath, this.imageStore, this.logger),
                     });
                 }
             }
@@ -492,7 +493,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             imgList.set(imagePath, {
                                 path: imagePath,
                                 realPath: imagePath, // Not needed for IndexedDB version
-                                getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), imagePath, this.imageStore, this.logger),
+                                getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), type, imagePath, this.imageStore, this.logger),
                             });
                         }
                     }
@@ -570,7 +571,7 @@ export class BeautySelectorAddon implements AddonPluginHookPointEx, BeautySelect
                             imgList.set(imagePath, {
                                 path: imagePath,
                                 realPath: imagePath, // Not needed for IndexedDB version
-                                getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), imagePath, this.imageStore, this.logger),
+                                getter: new BeautySelectorAddonImgGetterIndexedDB(modName, modHash.toString(), type, imagePath, this.imageStore, this.logger),
                             });
                         }
                     }
