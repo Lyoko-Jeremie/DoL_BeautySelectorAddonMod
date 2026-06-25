@@ -338,7 +338,7 @@ export class ModImageStore {
 
         // Use direct put() method which internally creates and commits short transactions
         const storeImage = async (imagePath: string, realPath: string, imageData: string) => {
-            const imageKey = `${modName}_${modHashString}_${imagePath}`;
+            const imageKey = `${modName}_${modHashString}_${type}_${imagePath}`;
             const imageRecord = {
                 modName,
                 modHashString,
@@ -375,7 +375,7 @@ export class ModImageStore {
     /**
      * Get image data by path
      */
-    async getImage(modName: string, modHashString: string, imagePath: string): Promise<string | undefined> {
+    async getImage(modName: string, modHashString: string, type: string, imagePath: string): Promise<string | undefined> {
         try {
             await this.iniImageStore();
         } catch (e) {
@@ -383,7 +383,7 @@ export class ModImageStore {
             throw e;
         }
 
-        const imageKey = `${modName}_${modHashString}_${imagePath}`;
+        const imageKey = `${modName}_${modHashString}_${type}_${imagePath}`;
         const imageRecord = await this.dbRef!.get('imageStore', imageKey);
         return imageRecord?.imageData;
     }
